@@ -19,6 +19,16 @@
 			"Name": "PCPP",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "PCPP_Interfaces",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "PCPP_Components",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
