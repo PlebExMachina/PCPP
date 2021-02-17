@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "PCPP",
+	"Description": "General purpose C++ utilities.",
+	"Category": "Other",
+	"CreatedBy": "PlebExMachina",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "PCPP",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
