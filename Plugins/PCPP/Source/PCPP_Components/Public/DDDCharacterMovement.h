@@ -149,4 +149,7 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	float GetIdleTime();
+
+	FORCEINLINE UFUNCTION(BlueprintPure)
+	EDDDMovementMode GetDDDMovementMode() { return DDDMovementMode; };
 };

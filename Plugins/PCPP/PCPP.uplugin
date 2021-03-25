@@ -29,6 +29,11 @@
 			"Name": "PCPP_Components",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "PCPP_Animation",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
