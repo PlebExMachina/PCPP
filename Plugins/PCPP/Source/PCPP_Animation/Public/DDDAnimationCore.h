@@ -9,7 +9,6 @@
 
 /**
  * Hooks into existing DDD Movement Component and tracks relevant data.
- * It can also interact with the component locally.
  */
 UCLASS(BlueprintType)
 class PCPP_ANIMATION_API UDDDAnimationCore : public UAnimInstance
@@ -52,9 +51,6 @@ class PCPP_ANIMATION_API UDDDAnimationCore : public UAnimInstance
 		UPROPERTY(EditAnywhere)
 		int32 BatchSize;
 
-		// Provides the MoveComp and fetches it if not yet defined.
-		UDDDCharacterMovement* GetMoveComp();
-
 		UPROPERTY(BlueprintReadOnly)
 		EDDDMovementMode MovementMode;
 
@@ -77,4 +73,8 @@ class PCPP_ANIMATION_API UDDDAnimationCore : public UAnimInstance
 		UDDDAnimationCore();
 
 		virtual void NativeUpdateAnimation(float dt) override;
+
+		// Provides the MoveComp and fetches it if not yet defined.
+		UFUNCTION(BlueprintPure)
+		UDDDCharacterMovement* GetMoveComp();
 };
