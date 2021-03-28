@@ -157,3 +157,10 @@ void URPGCore::BroadcastDelegate(FName Key, float OldValue) {
 FStatUpdatedDelegate* URPGCore::GetDelegate(FName Name) {
 	return _Delegates.Find(Name);
 }
+
+void URPGCore::BindCallbackToStat(FName Name, const FStatUpdatedInputDelegate& Callback) {
+	auto StatDelegate = GetDelegate(Name);
+	if (StatDelegate) {
+		StatDelegate->Add(Callback);
+	} 
+}

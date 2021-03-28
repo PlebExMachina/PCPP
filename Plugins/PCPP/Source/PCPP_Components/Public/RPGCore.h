@@ -8,7 +8,7 @@
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FStatUpdatedDelegate, float, OldValue, float, UpdatedValue);
-
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FStatUpdatedInputDelegate, float, OldValue, float, UpdatedValue);
 /*
 * The default mode for the stat.
 * Literal -> Use the config defined value.
@@ -44,7 +44,6 @@ struct FRPGStatConfig {
 		LiteralDefault = 0.f;
 	}
 };
-
 
 /*
 * Dynamically allocates RPG Statistics and provides listeners for their updates.
@@ -89,7 +88,7 @@ public:
 	* Dependies may not also be set correctly if order is not adhered to.
 	*/
 	UFUNCTION(BlueprintCallable)
-		void BindStat(FName Name, FRPGStatConfig Config, EStatDefault Default = EStatDefault::Literal);
+	void BindStat(FName Name, FRPGStatConfig Config, EStatDefault Default = EStatDefault::Literal);
 
 	/* C++ Only, (Blueprint can still Get).
 	* Typical usage is to bind a lambda that takes in a "const TMap<FName, float >&" with no captures.
@@ -123,10 +122,7 @@ public:
 
 	// Gets an existing delegate. Returns nullptr on failure.
 	FStatUpdatedDelegate* GetDelegate(FName Name);
-};
 
-USTRUCT(BlueprintType)
-struct FRPGCachedData {
-	GENERATED_BODY()
-
+	UFUNCTION(BlueprintCallable)
+	void BindCallbackToStat(FName Name, const FStatUpdatedInputDelegate& Callback);
 };
