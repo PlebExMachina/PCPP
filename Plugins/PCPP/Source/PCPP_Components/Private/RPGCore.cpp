@@ -7,6 +7,13 @@
 URPGCore::URPGCore()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	_CacheKeys = {};
+	_CacheValues = {};
+	_CacheDelegates = {};
+	_CacheDependencies = {};
+	_CacheConfigs = {};
+	_CacheMinimum = {};
+	_CacheMaximum = {};
 }
 
 void URPGCore::BindStat(FName Name, FRPGStatConfig Config, EStatDefault Default) {
@@ -49,6 +56,9 @@ void URPGCore::BindStat(FName Name, FRPGStatConfig Config, EStatDefault Default)
 			DependencyArray->Add(Name);
 		}
 	}
+
+	// Cache is possibly invalidated, rebuild.
+	UpdateCache();
 }
 
 void URPGCore::BindDerivedStat(FName Name, DerivedStatFunctionPtr Definition)
@@ -142,7 +152,6 @@ void URPGCore::BroadcastDelegate(FName Key, float OldValue) {
 	float NewValue = GetStat(Key);
 	if (OldValue != NewValue) {
 		(_Delegates.Find(Key))->Broadcast(OldValue, NewValue);
-		OnAnyStatUpdated.Broadcast();
 		// Propagate changes across those dependant.
 		auto Dependants = _Dependencies.Find(Key);
 		if (Dependants) {
@@ -151,8 +160,11 @@ void URPGCore::BroadcastDelegate(FName Key, float OldValue) {
 				SetStat(*It, GetStat(*It));
 			}
 		}
+		OnAnyStatUpdated.Broadcast();
 	}
 }
+
+
 
 FStatUpdatedDelegate* URPGCore::GetDelegate(FName Name) {
 	return _Delegates.Find(Name);
@@ -163,4 +175,112 @@ void URPGCore::BindCallbackToStat(FName Name, const FStatUpdatedInputDelegate& C
 	if (StatDelegate) {
 		StatDelegate->Add(Callback);
 	} 
+}
+
+void URPGCore::UpdateCache() {
+	// Empty Arrays so that they can be refilled in order.
+	_CacheValues = {};
+	_CacheDelegates = {};
+	_CacheDependencies = {};
+	_CacheConfigs = {};
+	_CacheMinimum = {};
+	_CacheMaximum = {};
+
+	// Empty Arrays + In Order Access Invariants imply that indices should be correct.
+	for (auto It = _CacheKeys.CreateIterator(); It; ++It) {
+		auto Config = _Configs.Find(*It);
+		_CacheValues.Add(_Statistics.Find(*It));
+		_CacheConfigs.Add(Config);
+		_CacheDelegates.Add(_Delegates.Find(*It));
+		_CacheDependencies.Add(_Dependencies.Find(*It));
+		_CacheMaximum.Add(_Statistics.Find(Config->MaximumConstraint));
+		_CacheMinimum.Add(_Statistics.Find(Config->MinimumConstraint));
+	}
+	// Cache Rebuilt
+}
+
+int32 URPGCore::RegisterCacheEntry(FName StatName) {
+	auto Index = _CacheKeys.Find(StatName);
+	// Already cached. Just return Index.
+	if (Index != INDEX_NONE) {
+		return Index;
+	}
+
+	// Can't cache what doesn't exist.
+	auto ItemValue = _Statistics.Find(StatName);
+	if (!ItemValue) {
+		return INDEX_NONE;
+	}
+
+	auto Config = _Configs.Find(StatName);
+
+	// Cache references to all relevant data.
+	_CacheKeys.Add(StatName);
+	_CacheValues.Add(ItemValue);
+	_CacheConfigs.Add(Config);
+	_CacheDelegates.Add(_Delegates.Find(StatName));
+	_CacheDependencies.Add(_Dependencies.Find(StatName));
+	_CacheMaximum.Add(_Statistics.Find(Config->MaximumConstraint));
+	_CacheMinimum.Add(_Statistics.Find(Config->MinimumConstraint));
+
+	return Index;
+}
+
+float URPGCore::GetCachedStat(int32 Index) {
+	// Only Valid Indices
+	if ((Index >= 0) || (Index < _CacheKeys.Num())) {
+		return *(_CacheValues[Index]);
+	}
+	return 0.f;
+}
+
+void URPGCore::SetCachedStat(int32 Index, float Value) {
+	if ((Index >= 0) || (Index < _CacheKeys.Num())) {
+		float OldValue = *(_CacheValues[Index]);
+		
+		// Set Value
+		*(_CacheValues[Index]) = Value;
+
+		// Apply Constraints.
+		if (_CacheMaximum[Index]) {
+			if (*(_CacheValues[Index]) > *(_CacheMaximum[Index])) {
+				*(_CacheValues[Index]) = *(_CacheMaximum[Index]);
+			}
+		}
+		if (_CacheMinimum[Index]) {
+			if (*(_CacheValues[Index]) < *(_CacheMinimum[Index])) {
+				*(_CacheValues[Index]) = *(_CacheMinimum[Index]);
+			}
+		}
+
+		// Broadcast across delegates.
+		float NewValue = *(_CacheValues[Index]);
+		if (NewValue != OldValue) {
+			(_CacheDelegates[Index])->Broadcast(OldValue, NewValue);
+			// Propagate across dependants. It's non-trivial to cache dependants so caching such data is irresponsible.
+			// Regardless the case must be handled so that it behaves identically to normal behavior.
+			if (_CacheDependencies[Index]) {
+				for (auto It = (_CacheDependencies[Index])->CreateIterator(); It; ++It) {
+					SetStat(*It, GetStat(*It));
+				}
+			}
+			OnAnyStatUpdated.Broadcast();
+		}
+	}
+}
+
+void URPGCore::AddCachedStat(int32 Index, float Value) {
+	SetCachedStat(Index, GetCachedStat(Index) + Value);
+}
+
+void URPGCore::SetCachedStatToMax(int32 Index){
+	if ((Index >= 0) || (Index < _CacheKeys.Num())) {
+		SetCachedStat(Index, *(_CacheMaximum[Index]));
+	}
+}
+
+void URPGCore::SetCachedStatToMin(int32 Index){
+	if ((Index >= 0) || (Index < _CacheKeys.Num())) {
+		SetCachedStat(Index, *(_CacheMinimum[Index]));
+	}
 }

@@ -62,7 +62,16 @@ public:
 private:
 	void BroadcastDelegate(FName Key, float OldValue);
 
+	void UpdateCache();
 protected:
+	// Collection of information for managing cache.
+	TArray<FName> _CacheKeys;
+	TArray<float*> _CacheValues;
+	TArray<FStatUpdatedDelegate*> _CacheDelegates;
+	TArray<TSet<FName>*> _CacheDependencies;
+	TArray<FRPGStatConfig*> _CacheConfigs;
+	TArray<float*> _CacheMinimum;
+	TArray<float*> _CacheMaximum;
 
 	// The actual value of the stat.
 	TMap<FName, float > _Statistics;
@@ -135,4 +144,32 @@ public:
 	*/
 	UPROPERTY(BlueprintAssignable)
 	FAnyStatUpdatedDelegate OnAnyStatUpdated;
+
+	/*
+	* Registers a stat to the cache and returns the index corresponding to the value.
+	* For safety reasons tracked values cannot be untracked.
+	* If key invalid INDEX_NONE will be returned as the index.
+	*/
+	UFUNCTION(BlueprintCallable)
+	int32 RegisterCacheEntry(FName StatName);
+
+	// Retrieves a stat from the cached index. If the index is invalid returns 0.f
+	UFUNCTION(BlueprintPure)
+	float GetCachedStat(int32 Index);
+
+	// Sets the cached stat to the desired value.
+	UFUNCTION(BlueprintCallable)
+	void SetCachedStat(int32 Index, float Value);
+
+	// Adds to the cached stat.
+	UFUNCTION(BlueprintCallable)
+	void AddCachedStat(int32 Index, float Value);
+
+	// Sets the cached stat to it's maximum if possible.
+	UFUNCTION(BlueprintCallable)
+	void SetCachedStatToMax(int32 Index);
+
+	// Sets the cached stat to it's minimum if possible.
+	UFUNCTION(BlueprintCallable)
+	void SetCachedStatToMin(int32 Index);
 };
