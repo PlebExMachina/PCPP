@@ -8,6 +8,7 @@
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FStatUpdatedDelegate, float, OldValue, float, UpdatedValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAnyStatUpdatedDelegate);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FStatUpdatedInputDelegate, float, OldValue, float, UpdatedValue);
 /*
 * The default mode for the stat.
@@ -123,6 +124,15 @@ public:
 	// Gets an existing delegate. Returns nullptr on failure.
 	FStatUpdatedDelegate* GetDelegate(FName Name);
 
+	// Allows for the binding of blueprint events (function delegates) to a stat change.
 	UFUNCTION(BlueprintCallable)
 	void BindCallbackToStat(FName Name, const FStatUpdatedInputDelegate& Callback);
+
+	/*
+	* Generic delegate that responds whenever any stat is updated. 
+	* If dependencies are present it may be called multiple time.
+	* An example use case would be updates occuring on a stat screen where multiple derived stats may need to be referenced.
+	*/
+	UPROPERTY(BlueprintAssignable)
+	FAnyStatUpdatedDelegate OnAnyStatUpdated;
 };
