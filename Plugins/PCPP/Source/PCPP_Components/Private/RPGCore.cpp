@@ -142,7 +142,7 @@ void URPGCore::BroadcastDelegate(FName Key, float OldValue) {
 	float NewValue = GetStat(Key);
 	if (OldValue != NewValue) {
 		(_Delegates.Find(Key))->Broadcast(OldValue, NewValue);
-
+		OnAnyStatUpdated.Broadcast();
 		// Propagate changes across those dependant.
 		auto Dependants = _Dependencies.Find(Key);
 		if (Dependants) {
