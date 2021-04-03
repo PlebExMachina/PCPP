@@ -83,12 +83,10 @@ bool ULockOnSystem::TraceLockableActors(TArray<AActor*>& Out)
 	
 	QueryParams.AddIgnoredActor(GetOwner());
 
-	auto Comps = GetOwner()->GetComponentsByClass(UPrimitiveComponent::StaticClass());
+	TArray<UPrimitiveComponent*> Comps;
+	GetOwner()->GetComponents<UPrimitiveComponent>(Comps);
 	for (auto I = Comps.CreateIterator(); I; ++I) {
-		auto Comp = Cast<UPrimitiveComponent>(*I);
-		if (Comp) {
-			QueryParams.AddIgnoredComponent(Comp);
-		}
+			QueryParams.AddIgnoredComponent(*I);
 	}
 
 	FCollisionResponseParams CollisionResponse = FCollisionResponseParams::DefaultResponseParam;
