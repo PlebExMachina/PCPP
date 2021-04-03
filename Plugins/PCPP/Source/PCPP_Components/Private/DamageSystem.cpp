@@ -2,6 +2,7 @@
 
 
 #include "DamageSystem.h"
+#include "PCPP_Iterator.h"
 
 TMap<FName, DamageFormula> UDamageSystem::_Formulas = {};
 
@@ -59,16 +60,20 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 		// Duration Expired Case
 		if (*DurationIterator < 0.f) {
-			FormulaIterator.RemoveCurrent();
-			DurationIterator.RemoveCurrent();
-			MagnitudeIterator.RemoveCurrent();
-			AttackerIterator.RemoveCurrent();
+			PCPP_Iterator::RemoveCurrent(
+				FormulaIterator,
+				DurationIterator,
+				MagnitudeIterator,
+				AttackerIterator
+			);
 		} else {
 		// Incrementing Case
-			++FormulaIterator;
-			++DurationIterator;
-			++MagnitudeIterator;
-			++AttackerIterator;
+			PCPP_Iterator::Increment(
+				FormulaIterator,
+				DurationIterator,
+				MagnitudeIterator,
+				AttackerIterator
+			);
 		}
 	}
 }

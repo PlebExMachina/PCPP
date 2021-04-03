@@ -8,7 +8,8 @@ public class PCPP_Components : ModuleRules {
         PublicDependencyModuleNames.AddRange(new string[] {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "Dev"
         });
 
         // Custom dependencies
