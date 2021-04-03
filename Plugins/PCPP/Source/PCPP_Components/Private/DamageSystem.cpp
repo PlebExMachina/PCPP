@@ -14,6 +14,7 @@ UDamageSystem::UDamageSystem()
 	PrimaryComponentTick.bCanEverTick = true;
 	OwnerRPGCore = nullptr;
 	SetComponentTickEnabled(false);
+
 	_DOTFormulas = {};
 	_DOTDuration = {};
 	_DOTMagnitude = {};
@@ -44,7 +45,7 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 	auto DurationIterator = _DOTDuration.CreateIterator();
 	auto MagnitudeIterator = _DOTMagnitude.CreateIterator();
 	auto AttackerIterator = _DOTAttackers.CreateIterator();
-
+	
 	while (FormulaIterator) {
 		// Very small dot time remaining case.
 		if ((*DurationIterator - DeltaTime) < 0.f) {
@@ -58,23 +59,14 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 		// Decrement Time Passed
 		*DurationIterator -= DeltaTime;
 
-		// Duration Expired Case
-		if (*DurationIterator < 0.f) {
-			PCPP_Iterator::RemoveCurrent(
-				FormulaIterator,
-				DurationIterator,
-				MagnitudeIterator,
-				AttackerIterator
-			);
-		} else {
-		// Incrementing Case
-			PCPP_Iterator::Increment(
-				FormulaIterator,
-				DurationIterator,
-				MagnitudeIterator,
-				AttackerIterator
-			);
-		}
+		// Remove Any Expired DOTs
+		PCPP_Iterator::RemoveConditional(
+			*DurationIterator < 0.f, 
+			FormulaIterator,
+			DurationIterator,
+			MagnitudeIterator,
+			AttackerIterator
+		);
 	}
 }
 

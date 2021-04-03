@@ -7,6 +7,11 @@
 * Syncrhonizing multiple arrays is a common use case for Data Oriented Design purposes.
 */
 namespace PCPP_Iterator {
+	// Generates a pack of Iterators for concise function calls.
+	template<typename ... Ts>
+	auto GenerateIteratorPack(Ts &... xs) {
+		return xs;
+	}
 
 	void Increment() {}
 	// Advances Every Iterator Present
@@ -24,14 +29,15 @@ namespace PCPP_Iterator {
 		PCPP_Iterator::RemoveCurrent(xs...);
 	}
 
-	void RemoveConditional(bool Condition) {}
 	// Removes Entry if condition is True, otherwise advances the iterator.
 	template<typename ... Ts>
-	void RemoveCurrent(bool Condition, Ts&... xs) {
+	void RemoveConditional(bool Condition, Ts&... xs) {
 		if (Condition) {
 			PCPP_Iterator::RemoveCurrent(xs...);
 		} else {
 			PCPP_Iterator::Increment(xs...);
 		}
 	}
+
+
 }
