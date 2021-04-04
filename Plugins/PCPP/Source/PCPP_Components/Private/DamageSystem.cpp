@@ -6,13 +6,37 @@
 
 TMap<FName, DamageFormula> UDamageSystem::_Formulas = {};
 
+// Throw away struct to manage iterators and reduce potential programmer errors.
+template<typename T1, typename T2, typename T3, typename T4>
+struct _DamageSystemIterators {
+	_DamageSystemIterators(T1 F, T2 D, T3 M, T4 A) : 
+		Formula(F), 
+		Duration(D), 
+		Magnitude(M), 
+		Attacker(A) {};
+	T1 Formula;
+	T2 Duration;
+	T3 Magnitude;
+	T4 Attacker;
+
+	// Fake bool conversion. Used for readability in conditional.
+	T1 Valid() {
+		return Formula;
+	}
+};
+template<typename T1, typename T2, typename T3, typename T4>
+_DamageSystemIterators<T1, T2, T3, T4> _GetDamageSystemIterators(T1 F, T2 D, T3 M, T4 A) {
+	return _DamageSystemIterators<T1, T2, T3, T4>(F,D,M,A);
+}
+#define _IteratorArgs(Itr) Itr.Formula, Itr.Duration, Itr.Magnitude, Itr.Attacker
+
 // Sets default values for this component's properties
 UDamageSystem::UDamageSystem()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-	OwnerRPGCore = nullptr;
+	_OwnerRPGCore = nullptr;
 	SetComponentTickEnabled(false);
 
 	_DOTFormulas = {};
@@ -26,7 +50,7 @@ UDamageSystem::UDamageSystem()
 void UDamageSystem::BeginPlay()
 {
 	Super::BeginPlay();
-	OwnerRPGCore = Cast<URPGCore>(GetOwner()->GetComponentByClass(URPGCore::StaticClass()));	
+	_OwnerRPGCore = Cast<URPGCore>(GetOwner()->GetComponentByClass(URPGCore::StaticClass()));	
 }
 
 
@@ -34,6 +58,7 @@ void UDamageSystem::BeginPlay()
 void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	// No DOTs Stored, End Per Frame process.
 	if (_DOTFormulas.Num() == 0) {
 		SetComponentTickEnabled(false);
 		return;
@@ -41,32 +66,37 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 	// Number of elements are synchronized as they're all initialized simultaniously.
 	// Likewise array indices will also be syncrhonized.
-	auto FormulaIterator = _DOTFormulas.CreateIterator();
-	auto DurationIterator = _DOTDuration.CreateIterator();
-	auto MagnitudeIterator = _DOTMagnitude.CreateIterator();
-	auto AttackerIterator = _DOTAttackers.CreateIterator();
-	
-	while (FormulaIterator) {
-		// Very small dot time remaining case.
-		if ((*DurationIterator - DeltaTime) < 0.f) {
-			(*FormulaIterator)(*AttackerIterator, OwnerRPGCore, *DurationIterator, *MagnitudeIterator);
+	auto Iterators = _GetDamageSystemIterators(
+		_DOTFormulas.CreateIterator(), 
+		_DOTDuration.CreateIterator(),
+		_DOTMagnitude.CreateIterator(),
+		_DOTAttackers.CreateIterator()
+	);
+
+	// For each DOT
+	while (Iterators.Valid()) {
+		auto ExecuteFormula = (*(Iterators.Formula));
+		auto Attacker = *(Iterators.Attacker);
+		auto Defender = _OwnerRPGCore;
+		auto Duration = 0.f;
+		auto Magnitude = *(Iterators.Magnitude);
+		
+		// Get Time Passed (< Delta Time remaining case)
+		if ((*(Iterators.Duration) - DeltaTime) < 0.f) {
+			Duration = *(Iterators.Duration);
 		} else {
-		// Normal Case
-			(*FormulaIterator)(*AttackerIterator, OwnerRPGCore, DeltaTime, *MagnitudeIterator);
+		// Get Time Passed (Normal Case)
+			Duration = DeltaTime;
 		}
 
+		// Trigger DOT
+		ExecuteFormula(Attacker, Defender, Duration, Magnitude);
 
 		// Decrement Time Passed
-		*DurationIterator -= DeltaTime;
+		*(Iterators.Duration) -= DeltaTime;
 
 		// Remove Any Expired DOTs
-		PCPP_Iterator::RemoveConditional(
-			*DurationIterator < 0.f, 
-			FormulaIterator,
-			DurationIterator,
-			MagnitudeIterator,
-			AttackerIterator
-		);
+		PCPP_Iterator::RemoveConditional(*(Iterators.Duration) < 0.f, _IteratorArgs(Iterators));
 	}
 }
 
@@ -77,12 +107,12 @@ void UDamageSystem::RegisterDamageFormula(FName Name, DamageFormula Formula)
 
 void UDamageSystem::TryInflictDamage(AActor * Other, FName Formula, float Magnitude, float Duration)
 {
-	if (OwnerRPGCore) {
+	if (_OwnerRPGCore) {
 		auto FormulaInstance = _Formulas.Find(Formula);
 		if (FormulaInstance) {
 			auto TargetRPGCore = Cast<URPGCore>(Other->GetComponentByClass(URPGCore::StaticClass()));
 			if (TargetRPGCore) {
-				(*FormulaInstance)(OwnerRPGCore, TargetRPGCore, Magnitude, Duration);
+				(*FormulaInstance)(_OwnerRPGCore, TargetRPGCore, Magnitude, Duration);
 			}
 		}
 	}
@@ -90,14 +120,14 @@ void UDamageSystem::TryInflictDamage(AActor * Other, FName Formula, float Magnit
 
 void UDamageSystem::TryInflictDamageOverTime(AActor * Other, FName Formula, float Magnitude, float Duration)
 {
-	if (OwnerRPGCore) {
+	if (_OwnerRPGCore) {
 		auto FormulaInstance = _Formulas.Find(Formula);
 		if (FormulaInstance) {
 			auto TargetSystem = Cast<UDamageSystem>(Other->GetComponentByClass(UDamageSystem::StaticClass()));
 
 			// Append to target's (private) DOT List and then begin DOT processing if it isn't already running.
 			if (TargetSystem) {
-				TargetSystem->_DOTAttackers.Add(OwnerRPGCore);
+				TargetSystem->_DOTAttackers.Add(_OwnerRPGCore);
 				TargetSystem->_DOTDuration.Add(Duration);
 				TargetSystem->_DOTMagnitude.Add(Magnitude);
 				TargetSystem->_DOTFormulas.Add(*FormulaInstance);

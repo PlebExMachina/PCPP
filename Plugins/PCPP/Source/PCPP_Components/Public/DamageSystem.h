@@ -22,7 +22,13 @@ class PCPP_COMPONENTS_API UDamageSystem : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UDamageSystem();
-private:
+
+protected:
+	// Called when the game starts
+	virtual void BeginPlay() override;
+
+	URPGCore* _OwnerRPGCore;
+
 	// Global Formula Storage.
 	static TMap<FName, DamageFormula> _Formulas;
 
@@ -33,11 +39,8 @@ private:
 
 	// The attacker inflicting the DOT.
 	TArray<URPGCore*> _DOTAttackers;
-protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
 
-	URPGCore* OwnerRPGCore;
+
 
 public:	
 	// Required for 'Damage over Time' based approaches.
