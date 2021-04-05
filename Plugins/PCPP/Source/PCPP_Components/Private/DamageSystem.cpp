@@ -3,6 +3,7 @@
 
 #include "DamageSystem.h"
 #include "PCPP_Iterator.h"
+#include "PCPP_Tuple.h"
 
 TMap<FName, DamageFormula> UDamageSystem::_Formulas = {};
 
@@ -10,25 +11,21 @@ TMap<FName, DamageFormula> UDamageSystem::_Formulas = {};
 template<typename T1, typename T2, typename T3, typename T4>
 struct _DamageSystemIterators {
 	_DamageSystemIterators(T1 F, T2 D, T3 M, T4 A) : 
-		Formula(F), 
-		Duration(D), 
-		Magnitude(M), 
-		Attacker(A) {};
-	T1 Formula;
-	T2 Duration;
-	T3 Magnitude;
-	T4 Attacker;
-
+		Values(MakeTuple(F,D,M,A)) {};
+	T1& Formula() { return Values.Get<0>(); };
+	T2& Duration() { return Values.Get<1>(); };
+	T3& Magnitude() { return Values.Get<2>(); };
+	T4& Attacker() { return Values.Get<3>(); };
+	TTuple<T1, T2, T3, T4> Values;
 	// Fake bool conversion. Used for readability in conditional.
 	T1 Valid() {
-		return Formula;
+		return Values.Get<0>();
 	}
 };
 template<typename T1, typename T2, typename T3, typename T4>
 _DamageSystemIterators<T1, T2, T3, T4> _GetDamageSystemIterators(T1 F, T2 D, T3 M, T4 A) {
 	return _DamageSystemIterators<T1, T2, T3, T4>(F,D,M,A);
 }
-#define _IteratorArgs(Itr) Itr.Formula, Itr.Duration, Itr.Magnitude, Itr.Attacker
 
 // Sets default values for this component's properties
 UDamageSystem::UDamageSystem()
@@ -75,15 +72,15 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 	// For each DOT
 	while (Iterators.Valid()) {
-		auto ExecuteFormula = (*(Iterators.Formula));
-		auto Attacker = *(Iterators.Attacker);
+		auto ExecuteFormula = (*(Iterators.Formula()));
+		auto Attacker = *(Iterators.Attacker());
 		auto Defender = _OwnerRPGCore;
 		auto Duration = 0.f;
-		auto Magnitude = *(Iterators.Magnitude);
+		auto Magnitude = *(Iterators.Magnitude());
 		
 		// Get Time Passed (< Delta Time remaining case)
-		if ((*(Iterators.Duration) - DeltaTime) < 0.f) {
-			Duration = *(Iterators.Duration);
+		if ((*(Iterators.Duration()) - DeltaTime) < 0.f) {
+			Duration = *(Iterators.Duration());
 		} else {
 		// Get Time Passed (Normal Case)
 			Duration = DeltaTime;
@@ -93,10 +90,10 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 		ExecuteFormula(Attacker, Defender, Duration, Magnitude);
 
 		// Decrement Time Passed
-		*(Iterators.Duration) -= DeltaTime;
+		*(Iterators.Duration()) -= DeltaTime;
 
 		// Remove Any Expired DOTs
-		PCPP_Iterator::RemoveConditional(*(Iterators.Duration) < 0.f, _IteratorArgs(Iterators));
+		PCPP_Iterator::RemoveConditional(*(Iterators.Duration()) < 0.f, _TARGS4(Iterators.Values));
 	}
 }
 
