@@ -47,6 +47,18 @@ protected:
 	UPROPERTY(EditAnywhere)
 	FLockOnSystemConfig Config;
 
+	UPROPERTY(EditAnywhere)
+	TEnumAsByte<ECollisionChannel> CollisionChannel;
+
+	FCollisionQueryParams GetQueryParams();
+
+	FCollisionResponseParams GetCollisionResponseParams();
+
+	FCollisionShape GetTraceShape();
+
+	FVector GetNearLocation();
+	FVector GetFarLocation();
+
 private:
 	// Traces and finds lockable targets. Returns whether or not targets were found.
 	bool TraceLockableActors(TArray<AActor*>& Out);

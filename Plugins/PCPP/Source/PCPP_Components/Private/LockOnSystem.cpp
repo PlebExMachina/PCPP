@@ -5,8 +5,9 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "DrawDebugHelpers.h"
 
-#define _DEBUG_LOCK_ON_SYSTEM_
+//#define _DEBUG_LOCK_ON_SYSTEM_
 
+// Throwaway struct representing a "Sort by Distance" filter.
 struct FSortByDistance
 {
 	FSortByDistance(const FVector& InSourceLocation) : SourceLocation(InSourceLocation) {}
@@ -35,78 +36,96 @@ ULockOnSystem::ULockOnSystem()
 	TargetComponent = nullptr;
 	Lockable = true;
 	CameraMode = false;
+	CollisionChannel = ECollisionChannel::ECC_Visibility;
 	// ...
 }
 
 void ULockOnSystem::BeginPlay() {
-	FTimerDelegate TimerCallback;
-	FTimerHandle Handle;
-
-	TimerCallback.BindLambda([&] {
-		// Get Owner's camera and set it to CameraMode if it's player controlled.
-		auto PawnOwner = Cast<APawn>(GetOwner());
-		if (PawnOwner) {
-			if (PawnOwner->IsPlayerControlled()) {
-				OwnerCamera = Cast<UCameraComponent>(GetOwner()->GetComponentByClass(UCameraComponent::StaticClass()));
-				CameraMode = true;
-			}
+	// Get Owner's camera and set it to CameraMode if it's player controlled.
+	auto PawnOwner = Cast<APawn>(GetOwner());
+	if (PawnOwner) {
+		if (PawnOwner->IsPlayerControlled()) {
+			OwnerCamera = Cast<UCameraComponent>(GetOwner()->GetComponentByClass(UCameraComponent::StaticClass()));
+			CameraMode = true;
 		}
+	}
 
-		if (Config.ReceiveOnly) {
-			SetComponentTickEnabled(false);
-		}
-	});
+	if (Config.ReceiveOnly) {
+		SetComponentTickEnabled(false);
+	}
+}
 
-	GetWorld()->GetTimerManager().SetTimer(Handle, TimerCallback, 0.5f, false);
+FCollisionQueryParams ULockOnSystem::GetQueryParams()
+{
+	// Ignore the owner.
+	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+	QueryParams.AddIgnoredActor(GetOwner());
+
+	// Get  any primitives from the owner so that owner colliders don't get swept in.
+	TArray<UPrimitiveComponent*> Comps;
+	GetOwner()->GetComponents<UPrimitiveComponent>(Comps);
+	for (auto I = Comps.CreateIterator(); I; ++I) {
+		QueryParams.AddIgnoredComponent(*I);
+	}
+
+	return QueryParams;
+}
+
+FCollisionResponseParams ULockOnSystem::GetCollisionResponseParams()
+{
+	FCollisionResponseParams CollisionResponse = FCollisionResponseParams::DefaultResponseParam;
+	return CollisionResponse;
+}
+
+FCollisionShape ULockOnSystem::GetTraceShape()
+{
+	auto Shape = FCollisionShape(); 
+	Shape.ShapeType = ECollisionShape::Sphere; 
+	Shape.Sphere.Radius = Config.LockRadius;
+	return Shape;
+}
+
+FVector ULockOnSystem::GetNearLocation()
+{
+	// Project from Camera
+	if (CameraMode) {
+		return OwnerCamera->GetComponentLocation() + OwnerCamera->GetForwardVector()*Config.NearLockDistance;
+	}
+	// Project from Owner
+	return GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector()*Config.NearLockDistance;
+}
+
+FVector ULockOnSystem::GetFarLocation()
+{
+	// Project from Camera
+	if (CameraMode) {
+		return OwnerCamera->GetComponentLocation() + OwnerCamera->GetForwardVector()*Config.FarLockDistance;
+	}
+	// Project from Owner
+	return GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector()*Config.FarLockDistance;
 }
 
 bool ULockOnSystem::TraceLockableActors(TArray<AActor*>& Out)
 {
-	FVector NearLocation;
-	FVector FarLocation;
-
-	// Project distance from player camera.
-	if (CameraMode) {
-		NearLocation = OwnerCamera->GetComponentLocation() + OwnerCamera->GetForwardVector()*Config.NearLockDistance;
-		FarLocation = OwnerCamera->GetComponentLocation() + OwnerCamera->GetForwardVector()*Config.FarLockDistance;
-	}
-	// Project distance from actor.
-	else {
-		NearLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector()*Config.NearLockDistance;
-		FarLocation = GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector()*Config.FarLockDistance;
-	}
-
 	// Sweep, look for any hittable targets.
 	auto SweptTargets = TArray<FHitResult>();
-	auto Shape = FCollisionShape(); Shape.ShapeType = ECollisionShape::Sphere; Shape.Sphere.Radius = Config.LockRadius;
-	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
-	
-	QueryParams.AddIgnoredActor(GetOwner());
-
-	TArray<UPrimitiveComponent*> Comps;
-	GetOwner()->GetComponents<UPrimitiveComponent>(Comps);
-	for (auto I = Comps.CreateIterator(); I; ++I) {
-			QueryParams.AddIgnoredComponent(*I);
-	}
-
-	FCollisionResponseParams CollisionResponse = FCollisionResponseParams::DefaultResponseParam;
 	GetWorld()->SweepMultiByChannel(
 		SweptTargets,
-		NearLocation,
-		FarLocation,
+		GetNearLocation(),
+		GetFarLocation(),
 		FQuat(),
-		ECollisionChannel::ECC_Visibility,
-		Shape,
-		QueryParams,
-		CollisionResponse
+		CollisionChannel,
+		GetTraceShape(),
+		GetQueryParams(),
+		GetCollisionResponseParams()
 	);
 
 
 	#ifdef _DEBUG_LOCK_ON_SYSTEM_
 	DrawDebugLine(
 		GetWorld(),
-		NearLocation,
-		FarLocation,
+		GetNearLocation(),
+		GetFarLocation(),
 		FColor(255, 0, 0),
 		true,
 		10.f,
