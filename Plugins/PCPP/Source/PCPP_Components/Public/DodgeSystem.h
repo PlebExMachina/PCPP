@@ -29,6 +29,9 @@ public:
 	virtual void BeginPlay() override;
 
 protected:
+	ACharacter* CharacterOwner;
+	ACharacter* GetCharacterOwner();
+
 	AActor* LockedTarget;	
 
 	UFUNCTION()

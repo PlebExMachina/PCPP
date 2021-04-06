@@ -14,12 +14,20 @@ UDodgeSystem::UDodgeSystem()
 	PrimaryComponentTick.bCanEverTick = false;
 	DodgeStrength = 1000.f;
 	LockedTarget = nullptr;
+	CharacterOwner = nullptr;
 	// ...
+}
+
+ACharacter* UDodgeSystem::GetCharacterOwner() {
+	if (!CharacterOwner) {
+		CharacterOwner = Cast<ACharacter>(GetOwner());
+	}
+	return CharacterOwner;
 }
 
 void UDodgeSystem::DodgeInDirection(FVector DodgeDirection)
 {
-	auto Owner = Cast<ACharacter>(GetOwner());
+	auto Owner = GetCharacterOwner();
 	if (Owner) {
 		auto OwnerInput = DodgeDirection.GetSafeNormal();
 		if (OwnerInput.IsNearlyZero()) {
@@ -50,7 +58,7 @@ void UDodgeSystem::DodgeInDirection(FVector DodgeDirection)
 
 void UDodgeSystem::DodgeUsingInput()
 {
-	auto Owner = Cast<ACharacter>(GetOwner());
+	auto Owner = GetCharacterOwner();
 	if (Owner) {
 		auto OwnerInput = Owner->GetLastMovementInputVector().GetSafeNormal();
 		DodgeInDirection(OwnerInput);
@@ -59,7 +67,9 @@ void UDodgeSystem::DodgeUsingInput()
 
 void UDodgeSystem::BeginPlay() {
 	Super::BeginPlay();
+
 	// If lock on system exists hook into it to allow for dodge correction while locked.
+	// With current implementation Lazy Evaluation wouldn't help with dynamic binding.
 	auto LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
 	if (LockOnSystem) {
 		(LockOnSystem->OnActorLock).AddDynamic(this, &UDodgeSystem::SetLockedTarget);
