@@ -40,12 +40,12 @@ UDamageSystem::UDamageSystem()
 	_DOTAttackers = {};
 }
 
-
-// Called when the game starts
-void UDamageSystem::BeginPlay()
+URPGCore * UDamageSystem::_GetOwnerRPGCore()
 {
-	Super::BeginPlay();
-	_OwnerRPGCore = Cast<URPGCore>(GetOwner()->GetComponentByClass(URPGCore::StaticClass()));	
+	if (_OwnerRPGCore) {
+		_OwnerRPGCore = Cast<URPGCore>(GetOwner()->GetComponentByClass(URPGCore::StaticClass()));
+	}
+	return _OwnerRPGCore;
 }
 
 
@@ -60,7 +60,7 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 	}
 
 	// If owner RPG Core doesn't exist then exit.
-	if (!_OwnerRPGCore) {
+	if (!_GetOwnerRPGCore()) {
 		return;
 	}
 
@@ -77,7 +77,7 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 	while (Iterators.Valid()) {
 		auto ExecuteFormula = *(Iterators.Formula());
 		auto Attacker = *(Iterators.Attacker());
-		auto Defender = _OwnerRPGCore;
+		auto Defender = _GetOwnerRPGCore();
 		auto Duration = 0.f;
 		auto Magnitude = *(Iterators.Magnitude());
 		
@@ -112,12 +112,12 @@ void UDamageSystem::TryInflictDamage(AActor * Other, FName Formula, float Magnit
 	// Owner actually has an RPG Core
 	// The Formula Exists
 	// Target has an RPG Core.
-	if (_OwnerRPGCore) {
+	if (_GetOwnerRPGCore()) {
 		auto FormulaInstance = _Formulas.Find(Formula);
 		if (FormulaInstance) {
 			auto TargetRPGCore = Cast<URPGCore>(Other->GetComponentByClass(URPGCore::StaticClass()));
 			if (TargetRPGCore) {
-				(*FormulaInstance)(_OwnerRPGCore, TargetRPGCore, Magnitude, Duration);
+				(*FormulaInstance)(_GetOwnerRPGCore(), TargetRPGCore, Magnitude, Duration);
 			}
 		}
 	}
@@ -129,14 +129,14 @@ void UDamageSystem::TryInflictDamageOverTime(AActor * Other, FName Formula, floa
 	// Owner has RPG Core
 	// Formula Exists
 	// Target has a Damage System.
-	if (_OwnerRPGCore) {
+	if (_GetOwnerRPGCore()) {
 		auto FormulaInstance = _Formulas.Find(Formula);
 		if (FormulaInstance) {
 			auto TargetSystem = Cast<UDamageSystem>(Other->GetComponentByClass(UDamageSystem::StaticClass()));
 
 			// Append to target's (private) DOT List and then begin DOT processing if it isn't already running.
 			if (TargetSystem) {
-				TargetSystem->_DOTAttackers.Add(_OwnerRPGCore);
+				TargetSystem->_DOTAttackers.Add(_GetOwnerRPGCore());
 				TargetSystem->_DOTDuration.Add(Duration);
 				TargetSystem->_DOTMagnitude.Add(Magnitude);
 				TargetSystem->_DOTFormulas.Add(*FormulaInstance);

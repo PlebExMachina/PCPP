@@ -24,10 +24,10 @@ public:
 	UDamageSystem();
 
 protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
-
 	URPGCore* _OwnerRPGCore;
+
+	// Retrieves OwnerRPGCore, initializes if neccessary. (Lazy Evaluation)
+	URPGCore* _GetOwnerRPGCore();
 
 	// Global Formula Storage.
 	static TMap<FName, DamageFormula> _Formulas;
