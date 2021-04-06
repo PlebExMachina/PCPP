@@ -49,6 +49,9 @@ protected:
 	UDDDCharacterMovement* MovementComponent;
 	UDDDCharacterMovement* GetMovementComponent();
 
+	UCameraComponent* OwnerCamera;
+	UCameraComponent* GetOwnerCamera();
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 

@@ -7,14 +7,13 @@
 // Sets default values for this component's properties
 UDDDDriver::UDDDDriver()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 	MovementComponent = nullptr;
 	CharacterOwner = nullptr;
 	PreviousUpTurnInput = 0.f;
 	PreviousRightTurnInput = 0.f;
 	LockInputSensitivity = 0.25;
+	OwnerCamera = nullptr;
 	LockCycleAvailable = true;
 	// ...
 }
@@ -22,6 +21,7 @@ UDDDDriver::UDDDDriver()
 
 void UDDDDriver::TrackLockOn(AActor * ActorLocked)
 {
+	// Watch LockOnComponent and update lock state accordingly.
 	if (ActorLocked) {
 		LockedOn = true;
 	} else {
@@ -35,6 +35,14 @@ UDDDCharacterMovement * UDDDDriver::GetMovementComponent()
 		MovementComponent = Cast<UDDDCharacterMovement>(GetOwner()->GetComponentByClass(UDDDCharacterMovement::StaticClass()));
 	}
 	return MovementComponent;
+}
+
+UCameraComponent * UDDDDriver::GetOwnerCamera()
+{
+	if (!OwnerCamera) {
+		OwnerCamera = Cast<UCameraComponent>(GetOwner()->GetComponentByClass(UCameraComponent::StaticClass()));
+	}
+	return OwnerCamera;
 }
 
 // Called when the game starts
@@ -55,6 +63,7 @@ void UDDDDriver::BindInputs(
 	FName UpTurnAxis,
 	FName RightTurnAxis
 ) {
+	// Bind set of movements to corresponding axis / input names.
 	if (InputComponent) { 
 		if (ForwardMovementAxis != NAME_None) {
 			InputComponent->BindAxis(ForwardMovementAxis,this,&UDDDDriver::MoveForward);
@@ -80,36 +89,46 @@ void UDDDDriver::BindInputs(
 
 void UDDDDriver::MoveForward(float AxisValue)
 {
-	if (GetMovementComponent()) {
-		
+	if (GetMovementComponent() && GetOwnerCamera()) {
+		auto CameraRotation = GetOwnerCamera()->GetComponentRotation();
+		CameraRotation.Pitch = 0.f;
+		GetMovementComponent()->AddInputVector(UKismetMathLibrary::GetForwardVector(CameraRotation) * AxisValue);
 	}
 }
 
 void UDDDDriver::MoveRight(float AxisValue)
 {
-	if (GetMovementComponent()) {
-
+	if (GetMovementComponent() && GetOwnerCamera()) {
+		auto CameraRotation = GetOwnerCamera()->GetComponentRotation();
+		CameraRotation.Pitch = 0.f;
+		GetMovementComponent()->AddInputVector(UKismetMathLibrary::GetRightVector(CameraRotation) * AxisValue);
 	}
 }
 
 void UDDDDriver::BeginSprint()
 {
 	if (GetMovementComponent()) {
-
+		GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Run);
 	}
 }
 
 void UDDDDriver::EndSprint()
 {
 	if (GetMovementComponent()) {
-
+		if (GetMovementComponent()->GetDDDMovementMode() == EDDDMovementMode::DDD_Run) {
+			GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Walk);
+		}
 	}
 }
 
 void UDDDDriver::ToggleCrouch()
 {
 	if (GetMovementComponent()) {
-
+		if (GetMovementComponent()->GetDDDMovementMode() == EDDDMovementMode::DDD_Crouch) {
+			GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Walk);
+		} else {
+			GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Crouch);
+		}
 	}
 }
 
