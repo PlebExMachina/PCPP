@@ -30,8 +30,6 @@ _DamageSystemIterators<T1, T2, T3, T4> _GetDamageSystemIterators(T1 F, T2 D, T3 
 // Sets default values for this component's properties
 UDamageSystem::UDamageSystem()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 	_OwnerRPGCore = nullptr;
 	SetComponentTickEnabled(false);
@@ -61,6 +59,11 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 		return;
 	}
 
+	// If owner RPG Core doesn't exist then exit.
+	if (!_OwnerRPGCore) {
+		return;
+	}
+
 	// Number of elements are synchronized as they're all initialized simultaniously.
 	// Likewise array indices will also be syncrhonized.
 	auto Iterators = _GetDamageSystemIterators(
@@ -72,7 +75,7 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 	// For each DOT
 	while (Iterators.Valid()) {
-		auto ExecuteFormula = (*(Iterators.Formula()));
+		auto ExecuteFormula = *(Iterators.Formula());
 		auto Attacker = *(Iterators.Attacker());
 		auto Defender = _OwnerRPGCore;
 		auto Duration = 0.f;
@@ -99,11 +102,16 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 void UDamageSystem::RegisterDamageFormula(FName Name, DamageFormula Formula)
 {
+	// Add to static (global) formula storage.
 	_Formulas.Add(Name, Formula);
 }
 
 void UDamageSystem::TryInflictDamage(AActor * Other, FName Formula, float Magnitude, float Duration)
 {
+	// Series of sanity checks- 
+	// Owner actually has an RPG Core
+	// The Formula Exists
+	// Target has an RPG Core.
 	if (_OwnerRPGCore) {
 		auto FormulaInstance = _Formulas.Find(Formula);
 		if (FormulaInstance) {
@@ -117,6 +125,10 @@ void UDamageSystem::TryInflictDamage(AActor * Other, FName Formula, float Magnit
 
 void UDamageSystem::TryInflictDamageOverTime(AActor * Other, FName Formula, float Magnitude, float Duration)
 {
+	// Sanity checks - 
+	// Owner has RPG Core
+	// Formula Exists
+	// Target has a Damage System.
 	if (_OwnerRPGCore) {
 		auto FormulaInstance = _Formulas.Find(Formula);
 		if (FormulaInstance) {
