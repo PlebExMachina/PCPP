@@ -14,23 +14,21 @@ ULockOnCamera::ULockOnCamera() {
 }
 
 void ULockOnCamera::BeginPlay() {
-	FTimerDelegate TimerCallback;
-	FTimerHandle Handle;
 
-	TimerCallback.BindLambda([&] {
-		UseControlRotationDefault = bUsePawnControlRotation;
-		// Bind to existing lock on system. If it doesn't exist it will behave like a normal camera.
-		auto LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
-		if (LockOnSystem) {
-			(LockOnSystem->OnActorLock).AddDynamic(this, &ULockOnCamera::LockChanged);
-		}
-		auto PawnOwner = Cast<APawn>(GetOwner());
-		if (PawnOwner) {
-			OwnerController = PawnOwner->Controller;
-		}
-	});
+	UseControlRotationDefault = bUsePawnControlRotation;
 
-	GetWorld()->GetTimerManager().SetTimer(Handle, TimerCallback, 0.5f, false);
+	// Bind to existing lock on system. If it doesn't exist it will behave like a normal camera.
+	auto LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
+	if (LockOnSystem) {
+		(LockOnSystem->OnActorLock).AddDynamic(this, &ULockOnCamera::LockChanged);
+	}
+
+	auto PawnOwner = Cast<APawn>(GetOwner());
+
+	if (PawnOwner) {
+		OwnerController = PawnOwner->Controller;
+	}
+
 }
 
 void ULockOnCamera::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction){
