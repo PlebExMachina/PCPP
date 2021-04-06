@@ -29,19 +29,21 @@ void UDDDDriver::TrackLockOn(AActor * ActorLocked)
 	}
 }
 
+UDDDCharacterMovement * UDDDDriver::GetMovementComponent()
+{
+	if(!MovementComponent){
+		MovementComponent = Cast<UDDDCharacterMovement>(GetOwner()->GetComponentByClass(UDDDCharacterMovement::StaticClass()));
+	}
+	return MovementComponent;
+}
+
 // Called when the game starts
 void UDDDDriver::BeginPlay()
 {
 	Super::BeginPlay();
-	// Bind to Component.
-	MovementComponent = Cast<UDDDCharacterMovement>(GetOwner()->GetComponentByClass(UDDDCharacterMovement::StaticClass()));
-	LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
-	CharacterOwner = Cast<ACharacter>(GetOwner());
-
-	// Setup turn overrides.
-	if (LockOnSystem) {
-		LockOnSystem->OnActorLock.AddDynamic(this, &UDDDDriver::TrackLockOn);
-	}
+	GetMovementComponent();
+	GetCharacterOwner();
+	GetLockOnSystem();
 }
 
 void UDDDDriver::BindInputs(
@@ -78,35 +80,35 @@ void UDDDDriver::BindInputs(
 
 void UDDDDriver::MoveForward(float AxisValue)
 {
-	if (MovementComponent) {
-	
+	if (GetMovementComponent()) {
+		
 	}
 }
 
 void UDDDDriver::MoveRight(float AxisValue)
 {
-	if (MovementComponent) {
+	if (GetMovementComponent()) {
 
 	}
 }
 
 void UDDDDriver::BeginSprint()
 {
-	if (MovementComponent) {
+	if (GetMovementComponent()) {
 
 	}
 }
 
 void UDDDDriver::EndSprint()
 {
-	if (MovementComponent) {
+	if (GetMovementComponent()) {
 
 	}
 }
 
 void UDDDDriver::ToggleCrouch()
 {
-	if (MovementComponent) {
+	if (GetMovementComponent()) {
 
 	}
 }
@@ -114,10 +116,10 @@ void UDDDDriver::ToggleCrouch()
 void UDDDDriver::TurnRight(float AxisValue)
 {
 	VerifyLockCycleAvailable();
-	if (MovementComponent) {
+	if (GetMovementComponent()) {
 		if (!LockedOn) {
-			if (CharacterOwner) {
-				CharacterOwner->AddControllerYawInput(AxisValue);
+			if (GetCharacterOwner()) {
+				GetCharacterOwner()->AddControllerYawInput(AxisValue);
 			}
 		} else {
 			TryCycleLock(AxisValue);
@@ -128,10 +130,10 @@ void UDDDDriver::TurnRight(float AxisValue)
 void UDDDDriver::TurnUp(float AxisValue)
 {
 	VerifyLockCycleAvailable();
-	if (MovementComponent) {
+	if (GetMovementComponent()) {
 		if (!LockedOn) {
-			if (CharacterOwner) {
-				CharacterOwner->AddControllerPitchInput(AxisValue);
+			if (GetCharacterOwner()) {
+				GetCharacterOwner()->AddControllerPitchInput(AxisValue);
 			}
 		} else {
 			TryCycleLock(AxisValue);
@@ -143,13 +145,33 @@ void UDDDDriver::TryCycleLock(float AxisValue) {
 	bool InputValid = !UKismetMathLibrary::InRange_FloatFloat(AxisValue, LockInputSensitivity*-1.0, LockInputSensitivity);
 	if (LockCycleAvailable && InputValid) {
 		if (AxisValue > 0.0) {
-			LockOnSystem->CycleFurtherLock();
+			GetLockOnSystem()->CycleFurtherLock();
 		}
 		if (AxisValue < 0.0) {
-			LockOnSystem->CycleCloserLock();
+			GetLockOnSystem()->CycleCloserLock();
 		}
 		LockCycleAvailable = false;
 	}
+}
+
+ACharacter * UDDDDriver::GetCharacterOwner()
+{
+	if (!CharacterOwner) {
+		CharacterOwner = Cast<ACharacter>(GetOwner());
+	}
+	return CharacterOwner;
+}
+
+ULockOnSystem * UDDDDriver::GetLockOnSystem()
+{
+	if (!LockOnSystem) {
+		LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
+		// Setup turn overrides.
+		if (LockOnSystem) {
+			LockOnSystem->OnActorLock.AddDynamic(this, &UDDDDriver::TrackLockOn);
+		}
+	}
+	return LockOnSystem;
 }
 
 void UDDDDriver::VerifyLockCycleAvailable() {

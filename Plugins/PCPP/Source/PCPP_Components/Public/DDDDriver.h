@@ -26,7 +26,12 @@ protected:
 	UFUNCTION()
 	void TrackLockOn(AActor* ActorLocked);
 	bool LockedOn;
+
 	ULockOnSystem* LockOnSystem;
+
+	// Getter that will initialize lock on system if needed. (Lazy Evaluation)
+	ULockOnSystem* GetLockOnSystem();
+
 	float PreviousUpTurnInput;
 	float PreviousRightTurnInput;
 	bool LockCycleAvailable;
@@ -38,10 +43,12 @@ protected:
 
 	// The Character reference of the owner.
 	ACharacter* CharacterOwner;
+	ACharacter* GetCharacterOwner();
 
 	// The DDD Component that is the basis of the driver.
 	UDDDCharacterMovement* MovementComponent;
-	
+	UDDDCharacterMovement* GetMovementComponent();
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
