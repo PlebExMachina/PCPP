@@ -8,7 +8,9 @@ public class PCPP_Interfaces : ModuleRules {
         PublicDependencyModuleNames.AddRange(new string[] {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "Json",
+            "JsonUtilities"
         });
 
         // Custom dependencies
