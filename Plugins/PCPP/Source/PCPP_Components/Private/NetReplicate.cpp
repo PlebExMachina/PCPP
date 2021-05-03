@@ -3,7 +3,6 @@
 
 #include "NetReplicate.h"
 #include "Serialization/JsonSerializer.h"
-#include "..\Public\NetReplicate.h"
 
 UNetReplicate::UNetReplicate()
 {
@@ -24,7 +23,7 @@ void UNetReplicate::_ProcessReliableRequestFromInterface(UActorComponent * Targe
 			TSharedRef<TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&OutputString);
 			FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
 
-			RequestReplication(Interface->_GetTag(), OutputString);
+			RequestReplication(Interface->_GetTag(), OutputString, true);
 		}
 	}
 }

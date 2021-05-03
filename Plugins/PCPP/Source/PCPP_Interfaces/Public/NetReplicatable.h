@@ -29,9 +29,10 @@ private:
 	// Forward declare replication component
 	friend class UNetReplicate;
 
+	// Endpoint for listening component to listen on.
 	FReliableReplicateDelegate _ReliableReplicationDelegate;
 
-	// Utilize for ticking of unreliable updates.
+	// Utilize for ticking of unreliable updates once registered.
 	FTimerDelegate _ReplicationTimerDelegate;
 	FTimerHandle _ReplicationTimerHandle;
 
@@ -39,18 +40,18 @@ private:
 	FString _GeneratedTag;
 	bool _TagGenerated;
 	const FString& _GetTag() {
+		// Get tag (lazy.)
 		if (_TagGenerated) {
 			return _GeneratedTag;
 		}
 
-		// Generate tag.
+		// Generate tag (lazy.)
 		auto Self = Cast<UActorComponent>(this);
 		if (Self) {
 			// Display names for components must be unique.
 			_GeneratedTag = UKismetSystemLibrary::GetDisplayName(Self);
 			Self->ComponentTags.Add(FName(*_GeneratedTag));
 		}
-
 		return _GeneratedTag;
 	}
 public:
@@ -69,6 +70,7 @@ public:
 	void ForceUpdate(bool Reliable = true) {
 		auto Self = Cast<UActorComponent>(this);
 		if (Self) {
+			// Listening replication component will perform replication. (requires registration.)
 			_ReliableReplicationDelegate.Broadcast(Self, Reliable);
 		}
 	}

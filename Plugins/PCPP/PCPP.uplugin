@@ -36,6 +36,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "PCPP_Game",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
 			"Name": "Dev",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
