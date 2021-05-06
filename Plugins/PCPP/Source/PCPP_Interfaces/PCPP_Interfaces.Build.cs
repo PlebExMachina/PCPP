@@ -10,7 +10,8 @@ public class PCPP_Interfaces : ModuleRules {
             "CoreUObject",
             "Engine",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "Dev"
         });
 
         // Custom dependencies

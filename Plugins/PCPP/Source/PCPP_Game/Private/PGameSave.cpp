@@ -4,113 +4,79 @@
 #include "PGameSave.h"
 #include "Savable.h"
 #include "Kismet/GameplayStatics.h"
+#include "PCPP_UE4.h"
 
-void UPGameSave::SaveGame(FString FileName, int32 UserIndex, int32 RetryCount) {
+void UPGameSave::SaveGame() {
+	// Get all Savable objects.
+	TArray<ISavable*> Array;
+	PCPP_UE4::GetInterfaces<UObject, ISavable>(Array);
+
+	// Store all object data into runtime save file instance.
+	PCPP_UE4::ForEach(Array, [&](ISavable* i) {
+		SavedData.Add(i->SaveID(), i->Save());
+	});
+}
+
+void UPGameSave::SaveFile(FString FileName, int32 UserIndex, int32 RetryCount) {
+	// Store all runtime data.
+	SaveGame();
+
 	// Create instance to actually commit to memory.
 	UPGameSave* SaveGameInstance = Cast<UPGameSave>(UGameplayStatics::CreateSaveGameObject(UPGameSave::StaticClass()));
 	SaveGameInstance->SavedData = SavedData;
 
-	TArray<UObject*> Array;
-	for (TObjectIterator<UObject> Object; Object; ++Object) {
-		if (Object->Implements<USavable>()) {
-			Array.Add(*Object);
-		}
-	}
-	
-	for (auto Object = Array.CreateIterator(); Object; ++Object) {
-		auto Savable = Cast<ISavable>(*Object);
-		// Add to Instance as well as local (probably) runtime object.
-		SavedData.Add(Savable->SaveID(),Savable->Save());
-		SaveGameInstance->SavedData.Add(Savable->SaveID(), Savable->Save());
-	}
+	// Try to commit to memory.
+	bool SaveSuccessful = PCPP_UE4::Retry([&]() {
+		return UGameplayStatics::SaveGameToSlot(SaveGameInstance, FileName, UserIndex);
+	}, RetryCount);
 
-	bool SaveSuccessful = UGameplayStatics::SaveGameToSlot(SaveGameInstance, FileName, UserIndex);
+	// Report to listeners
 	if (SaveSuccessful) {
 		OnSaveSucceed.Broadcast();
 	} else {
-		if (RetryCount >= 0) {
-			// Busy waiting 1s (synchronous) to freeze engine to allow whatever is up with the file to be resolved.
-			auto InitTime = FDateTime::Now().ToUnixTimestamp();
-			while (FDateTime::Now().ToUnixTimestamp() - InitTime < 1) {
-				UE_LOG(LogTemp, Warning, TEXT("Busy Waiting in Save Game"));
-			}
-			SaveGame(FileName, UserIndex, RetryCount - 1);
-		} else {
-			OnSaveFail.Broadcast();
-		}
+		OnSaveFail.Broadcast();
 	}
 }
 
-void UPGameSave::LoadGame(FString FileName, int32 UserIndex, int32 RetryCount) {
-	 UPGameSave* LoadGameInstance = Cast<UPGameSave>(UGameplayStatics::LoadGameFromSlot(FileName,UserIndex));
-	 if (LoadGameInstance) {
-		 SavedData = LoadGameInstance->SavedData;
-		 TArray<UObject*> Array;
-		 for (TObjectIterator<UObject> Object; Object; ++Object) {
-			 if (Object->Implements<USavable>()) {
-				 Array.Add(*Object);
-			 }
-		 }
+void UPGameSave::LoadSave(FString FileName, int32 UserIndex, int32 RetryCount) {
+	// Try Load File
+	UPGameSave* LoadGameInstance = nullptr;
+	bool LoadSuccessful = PCPP_UE4::Retry([&]() {
+		 LoadGameInstance = Cast<UPGameSave>(UGameplayStatics::LoadGameFromSlot(FileName, UserIndex));
+		 return LoadGameInstance != nullptr;
+	}, RetryCount);
 
-		 for (auto Object = Array.CreateIterator(); Object; ++Object) {
-			 auto Savable = Cast<ISavable>(*Object);
-			 auto SaveData = SavedData.Find(Savable->SaveID());
-			 if (SaveData) {
-				 Savable->Load(*SaveData);
-			 }
-			 else {
-				 Savable->Load(FJsonObject());
-			 }
-		 }
-		 OnLoadSucceed.Broadcast();
-	 } else {
-		 if (RetryCount >= 0) {
-			// Busy waiting 1s (synchronous) to freeze engine to allow whatever is up with the file to be resolved.
-			 auto InitTime = FDateTime::Now().ToUnixTimestamp();
-			 while (FDateTime::Now().ToUnixTimestamp() - InitTime < 1) {
-				UE_LOG(LogTemp, Warning, TEXT("Busy Waiting in Load Game"));
-			 }
-			 LoadGame(FileName, UserIndex, RetryCount - 1);
-		 } else {
-			 OnLoadFail.Broadcast();
-		 }
-	 }
+	if (LoadSuccessful) {
+		SavedData = LoadGameInstance->SavedData;
+		LoadGame();
+		OnLoadSucceed.Broadcast();
+	} else {
+		OnLoadFail.Broadcast();
+	}
 }
 
-void UPGameSave::LoadGameFromRuntime() {
-	TArray<UObject*> Array;
-	for (TObjectIterator<UObject> Object; Object; ++Object) {
-		if (Object->Implements<USavable>()) {
-			Array.Add(*Object);
-		}
-	}
-
-	for (auto Object = Array.CreateIterator(); Object; ++Object) {
-		auto Savable = Cast<ISavable>(*Object);
-		auto SaveData = SavedData.Find(Savable->SaveID());
+void UPGameSave::LoadGame() {
+	TArray<ISavable*> Array;
+	PCPP_UE4::GetInterfaces<UObject, ISavable>(Array);
+	PCPP_UE4::ForEach(Array, [&](ISavable* i) {
+		// Load to each data using either stored data or default object.
+		auto SaveData = SavedData.Find(i->SaveID());
 		if (SaveData) {
-			Savable->Load(*SaveData);
+			i->Load(*SaveData);
+		} else {
+			i->Load(FJsonObject());
 		}
-		else {
-			Savable->Load(FJsonObject());
-		}
-	}
+	});
 }
 
 void UPGameSave::DeleteGame(FString FileName, int32 UserIndex, int32 RetryCount) {
-	bool DeleteSuccessful = UGameplayStatics::DeleteGameInSlot(FileName, UserIndex);
+	bool DeleteSuccessful = PCPP_UE4::Retry([&]() {
+		return UGameplayStatics::DeleteGameInSlot(FileName, UserIndex);
+	}, RetryCount);
+
 	if (DeleteSuccessful) {
 		OnDeleteSucceed.Broadcast();
 	} else {
-		if (RetryCount >= 0) {
-			// Busy waiting 1s (synchronous) to freeze engine to allow whatever is up with the file to be resolved.
-			auto InitTime = FDateTime::Now().ToUnixTimestamp();
-			while (FDateTime::Now().ToUnixTimestamp() - InitTime < 1) {
-				UE_LOG(LogTemp, Warning, TEXT("Busy Waiting in Delete Game"));
-			}
-			DeleteGame(FileName, UserIndex, RetryCount - 1);
-		} else {
-			OnDeleteFail.Broadcast();
-		}
+		OnDeleteFail.Broadcast();
 	}
 }

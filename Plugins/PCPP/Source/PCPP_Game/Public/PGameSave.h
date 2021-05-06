@@ -23,15 +23,18 @@ class PCPP_GAME_API UPGameSave : public USaveGame
 
 	// Saves the game to the given slot utilizing information from all Savable implementing objects.
 	UFUNCTION(BlueprintCallable)
-	void SaveGame(FString FileName, int32 UserIndex, int32 RetryCount = 3);
+	void SaveGame();
+
+	UFUNCTION(BlueprintCallable)
+	void SaveFile(FString FileName, int32 UserIndex, int32 RetryCount = 3);
 
 	// Loads the game from the given slot and passes the data to all currently active Savable implementing objects.
 	UFUNCTION(BlueprintCallable)
-	void LoadGame(FString FileName, int32 UserIndex, int32 RetryCount = 3);
+	void LoadSave(FString FileName, int32 UserIndex, int32 RetryCount = 3);
 
 	// Passes load data into any Savable implementing objects.
 	UFUNCTION(BlueprintCallable)
-	void LoadGameFromRuntime();
+	void LoadGame();
 
 	// Deletes a save game.
 	UFUNCTION(BlueprintCallable)

@@ -8,7 +8,7 @@ public class Dev : ModuleRules {
         PublicDependencyModuleNames.AddRange(new string[] {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
         });
 
         // Custom dependencies

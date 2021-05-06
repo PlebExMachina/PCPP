@@ -11,7 +11,8 @@ public class PCPP_Game : ModuleRules {
             "Engine",
             "PCPP_Interfaces",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "Dev"
         });
 
         // Custom dependencies
