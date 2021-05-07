@@ -4,6 +4,7 @@
 #include "DamageSystem.h"
 #include "PCPP_Iterator.h"
 #include "PCPP_Tuple.h"
+#include "PCPP_UE4.h"
 
 TMap<FName, DamageFormula> UDamageSystem::_Formulas = {};
 
@@ -40,12 +41,8 @@ UDamageSystem::UDamageSystem()
 	_DOTAttackers = {};
 }
 
-URPGCore * UDamageSystem::_GetOwnerRPGCore()
-{
-	if (_OwnerRPGCore) {
-		_OwnerRPGCore = Cast<URPGCore>(GetOwner()->GetComponentByClass(URPGCore::StaticClass()));
-	}
-	return _OwnerRPGCore;
+URPGCore * UDamageSystem::_GetOwnerRPGCore(){
+	return PCPP_UE4::LazyGetComp(GetOwner(), _OwnerRPGCore);
 }
 
 
@@ -89,14 +86,19 @@ void UDamageSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 			Duration = DeltaTime;
 		}
 
-		// Trigger DOT
-		ExecuteFormula(Attacker, Defender, Duration, Magnitude);
+		if (ExecuteFormula) {
+			// Trigger DOT
+			ExecuteFormula(Attacker, Defender, Duration, Magnitude);
+		}
 
 		// Decrement Time Passed
 		*(Iterators.Duration()) -= DeltaTime;
 
 		// Remove Any Expired DOTs
-		PCPP_Iterator::RemoveConditional(*(Iterators.Duration()) < 0.f, _TARGS4(Iterators.Values));
+		PCPP_Iterator::RemoveConditional(
+			*(Iterators.Duration()) < 0.f, 
+			_TARGS4(Iterators.Values)
+		);
 	}
 }
 

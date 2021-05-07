@@ -27,7 +27,7 @@ UDDDCharacterMovement* UDDDAnimationCore::GetMoveComp() {
 		(Comp->OnRun).AddDynamic(this, &UDDDAnimationCore::__OnRun);
 		(Comp->OnCrouch).AddDynamic(this, &UDDDAnimationCore::__OnCrouch);
 		(Comp->OnDead).AddDynamic(this, &UDDDAnimationCore::__OnDead);
-		MovementMode = OwnerMoveComp->GetDDDMovementMode();
+		MovementMode = Comp->GetDDDMovementMode();
 	});
 }
 
