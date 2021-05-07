@@ -11,25 +11,25 @@ class DEV_API PCPP_UE4
 {
 public:
 	/*
-	*	Retrieves every single loaded object of the input array type.
+	*	Retrieves every single loaded object of the input container type.
 	*/
-	template<typename T>
-	static bool GetObjects(TArray<T*>& Out) {
+	template<template<typename, typename>class Container, class ObjectType, class Allocator>
+	static bool GetObjects(Container<ObjectType*, Allocator>& Out) {
 		Out = {};
-		for (TObjectIterator<T> Object; Object; ++Object) {
+		for (TObjectIterator<ObjectType> Object; Object; ++Object) {
 			Out.Add(*Object);
 		}
 		return Out.Num() > 0;
 	};
 	/*
-	*	A specialization of GetObjects which will instead output to an interface array I.
-	*	O = Object Type, I = IInterface
+	*	A specialization of GetObjects which will instead output to an interface container I.
+	*	O = Object Type
 	*/
-	template<typename O, typename I>
-	static bool GetInterfaces(TArray<I*>& Out) {
+	template<typename ObjectType, template<typename,typename>class C, class InterfaceType, class Allocator>
+	static bool GetInterfaces(C<InterfaceType*,Allocator>& Out) {
 		Out = {};
-		for (TObjectIterator<O> Object; Object; ++Object) {
-			auto i = Cast<I>(*Object);
+		for (TObjectIterator<ObjectType> Object; Object; ++Object) {
+			auto i = Cast<InterfaceType>(*Object);
 			if (i) {
 				Out.Add(i);
 			}
@@ -39,8 +39,8 @@ public:
 	/*
 	*	Performs an operation using each element of an array.
 	*/
-	template<typename T, typename F>
-	static void ForEach(TArray<T> &In, F Foo) {
+	template<typename C, typename F>
+	static void ForEach(C &In, F Foo) {
 		for (auto i = In.CreateIterator(); i; ++i) {
 			Foo(*i);
 		}
