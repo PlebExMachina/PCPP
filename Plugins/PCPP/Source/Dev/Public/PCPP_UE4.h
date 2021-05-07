@@ -69,35 +69,35 @@ public:
 	}
 
 	// Lazily get component.
-	template<typename Owner, typename CompType>
-	static CompType* LazyGetComp(Owner O, CompType*& MemberVariable) {
-		if (Out) {
-			return Out;
+	template<typename CompType>
+	static CompType* LazyGetComp(AActor* Owner, CompType*& MemberVariable) {
+		if (MemberVariable) {
+			return MemberVariable;
 		}
 
 		if (Owner) {
-			Out = Cast<CompType>(Owner->GetComponentByClass(CompType::StaticClass()));
+			MemberVariable = Cast<CompType>(Owner->GetComponentByClass(CompType::StaticClass()));
 		}
 
-		return Out;
+		return MemberVariable;
 	};
 
 	// Lazily get component and run init callback if needed.
-	template<typename Owner, typename CompType, typename InitCallback>
-	static CompType* LazyGetCompWithInit(Owner O, CompType*& MemberVariable, InitCallback Callback){
-		if (Out) {
-			return Out;
+	template<typename CompType, typename InitCallback>
+	static CompType* LazyGetCompWithInit(AActor* Owner, CompType*& MemberVariable, InitCallback Callback){
+		if (MemberVariable) {
+			return MemberVariable;
 		}
 
 		if (Owner) {
-			Out = LazyGetComp(O, MemberVariable);
+			MemberVariable = LazyGetComp(Owner, MemberVariable);
 
-			if (Out) {
-				Callback(Out);
+			if (MemberVariable) {
+				Callback(MemberVariable);
 			}
 		}
 
-		return Out;
+		return MemberVariable;
 	};
 
 };

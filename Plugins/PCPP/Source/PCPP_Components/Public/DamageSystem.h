@@ -10,6 +10,19 @@
 // Represent damage being inflicted from Attacker to Defender. Also carries an optional "magnitude" and "duration."
 typedef void (*DamageFormula)(URPGCore*, URPGCore*, float, float);
 
+USTRUCT()
+struct FDamageDOT {
+	GENERATED_BODY()
+
+	DamageFormula Formula;
+	float Duration;
+	float Magnitude;
+	URPGCore* Attacker;
+
+	FDamageDOT() {};
+	FDamageDOT(DamageFormula f, float d, float m, URPGCore* a) : Formula(f), Duration(d), Magnitude(m), Attacker(a) {};
+};
+
 /*
 * Damage System, allows for the storage of damage formulas which can interact between the owner and target's RPGCore components.
 * It uses "In to Out" based logic for damage flow where the Attacker's stats are Projected towards a Defender target.
@@ -32,14 +45,8 @@ protected:
 	// Global Formula Storage.
 	static TMap<FName, DamageFormula> _Formulas;
 
-	// Active damage over time info. (Duration, Magnitude, Formula)
-	TArray<DamageFormula> _DOTFormulas;
-	TArray<float> _DOTDuration;
-	TArray<float> _DOTMagnitude;
-
-	// The attacker inflicting the DOT.
-	TArray<URPGCore*> _DOTAttackers;
-
+	// Active damage over time info.
+	TArray<FDamageDOT> _DOT;
 
 
 public:	
