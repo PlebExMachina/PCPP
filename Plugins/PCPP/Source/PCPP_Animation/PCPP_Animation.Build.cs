@@ -9,7 +9,8 @@ public class PCPP_Animation : ModuleRules {
             "Core",
             "CoreUObject",
             "Engine",
-			"PCPP_Components"
+			"PCPP_Components",
+            "Dev"
         });
 
         // Custom dependencies

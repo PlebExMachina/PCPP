@@ -2,6 +2,7 @@
 
 
 #include "DDDAnimationCore.h"
+#include "PCPP_UE4.h"
 
 UDDDAnimationCore::UDDDAnimationCore() {
 	TaskIndex = 0;
@@ -21,23 +22,13 @@ UDDDAnimationCore::UDDDAnimationCore() {
 }
 
 UDDDCharacterMovement* UDDDAnimationCore::GetMoveComp() {
-	// Fetch missing component.
-	if (!OwnerMoveComp) {
-		auto PawnOwner = TryGetPawnOwner();
-		if (PawnOwner) {
-			OwnerMoveComp = Cast<UDDDCharacterMovement>(PawnOwner->GetComponentByClass(UDDDCharacterMovement::StaticClass()));
-
-			// If successful then bind relevant functions to the component delegates.
-			if (OwnerMoveComp) {
-				(OwnerMoveComp->OnWalk).AddDynamic(this, &UDDDAnimationCore::__OnWalk);
-				(OwnerMoveComp->OnRun).AddDynamic(this, &UDDDAnimationCore::__OnRun);
-				(OwnerMoveComp->OnCrouch).AddDynamic(this, &UDDDAnimationCore::__OnCrouch);
-				(OwnerMoveComp->OnDead).AddDynamic(this, &UDDDAnimationCore::__OnDead);
-				MovementMode = OwnerMoveComp->GetDDDMovementMode();
-			}
-		}
-	}
-	return OwnerMoveComp;
+	return PCPP_UE4::LazyGetCompWithInit(TryGetPawnOwner(), OwnerMoveComp, [&](UDDDCharacterMovement* Comp) {
+		(Comp->OnWalk).AddDynamic(this, &UDDDAnimationCore::__OnWalk);
+		(Comp->OnRun).AddDynamic(this, &UDDDAnimationCore::__OnRun);
+		(Comp->OnCrouch).AddDynamic(this, &UDDDAnimationCore::__OnCrouch);
+		(Comp->OnDead).AddDynamic(this, &UDDDAnimationCore::__OnDead);
+		MovementMode = OwnerMoveComp->GetDDDMovementMode();
+	});
 }
 
 void UDDDAnimationCore::NativeUpdateAnimation(float dt) {

@@ -67,4 +67,37 @@ public:
 		}
 		return false;
 	}
+
+	// Lazily get component.
+	template<typename Owner, typename CompType>
+	static CompType* LazyGetComp(Owner O, CompType*& MemberVariable) {
+		if (Out) {
+			return Out;
+		}
+
+		if (Owner) {
+			Out = Cast<CompType>(Owner->GetComponentByClass(CompType::StaticClass()));
+		}
+
+		return Out;
+	};
+
+	// Lazily get component and run init callback if needed.
+	template<typename Owner, typename CompType, typename InitCallback>
+	static CompType* LazyGetCompWithInit(Owner O, CompType*& MemberVariable, InitCallback Callback){
+		if (Out) {
+			return Out;
+		}
+
+		if (Owner) {
+			Out = LazyGetComp(O, MemberVariable);
+
+			if (Out) {
+				Callback(Out);
+			}
+		}
+
+		return Out;
+	};
+
 };
