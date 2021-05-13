@@ -5,6 +5,7 @@
 #include "GameFramework/Character.h"
 #include "LockOnSystem.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "PCPP_UE4.h"
 
 // Sets default values for this component's properties
 UDodgeSystem::UDodgeSystem()
@@ -19,10 +20,7 @@ UDodgeSystem::UDodgeSystem()
 }
 
 ACharacter* UDodgeSystem::GetCharacterOwner() {
-	if (!CharacterOwner) {
-		CharacterOwner = Cast<ACharacter>(GetOwner());
-	}
-	return CharacterOwner;
+	return PCPP_UE4::LazyGetOwner(this,CharacterOwner);
 }
 
 void UDodgeSystem::DodgeInDirection(FVector DodgeDirection)
@@ -34,20 +32,28 @@ void UDodgeSystem::DodgeInDirection(FVector DodgeDirection)
 			OwnerInput = UKismetMathLibrary::GetForwardVector(Owner->GetActorRotation());
 		}
 
-		// Perform angle correction if locked to a target.
+		// Perform angle correction if locked to a target. 
+		// This is to ensure the player doesn't dash "away" when performing left/right dodges.
 		if (LockedTarget) {
+			// Get Direction Facing Locked Target
 			auto RotationTowardsTarget = UKismetMathLibrary::GetDirectionUnitVector(
 				GetOwner()->GetActorLocation(),
 				LockedTarget->GetActorLocation()
 			).Rotation();
+
+			// Get Owner's Dodge Direction
 			auto DodgeRotation = DodgeDirection.Rotation();
 
+			// Find how much of a difference there is between the locked target and where the character is dodging.
 			auto RotationDifference = UKismetMathLibrary::NormalizedDeltaRotator(RotationTowardsTarget, DodgeRotation);
+
+			// Left Case, Add 45 degrees for Lock Correction
 			if ((RotationDifference.Yaw >= 50.f) && (RotationDifference.Yaw <= 105.f)) {
-				// Left Case, Subtract 45 degrees for Lock Correction
-				OwnerInput = OwnerInput.RotateAngleAxis(45.f,FVector(0.f,0.f,1.f));
-			} else if ((RotationDifference.Yaw >= -105.f) && (RotationDifference.Yaw <= -50.f)) {
-				// Right Case, Add 45 for Lock Correction
+				OwnerInput = OwnerInput.RotateAngleAxis(45.f, FVector(0.f, 0.f, 1.f));
+			}
+
+			// Right Case, Subtract 45 degrees for Lock Correction
+			if ((RotationDifference.Yaw >= -105.f) && (RotationDifference.Yaw <= -50.f)) {
 				OwnerInput = OwnerInput.RotateAngleAxis(-45.f , FVector(0.f, 0.f, 1.f));
 			}
 		}
@@ -56,11 +62,9 @@ void UDodgeSystem::DodgeInDirection(FVector DodgeDirection)
 	}
 }
 
-void UDodgeSystem::DodgeUsingInput()
-{
-	auto Owner = GetCharacterOwner();
-	if (Owner) {
-		auto OwnerInput = Owner->GetLastMovementInputVector().GetSafeNormal();
+void UDodgeSystem::DodgeUsingInput(){
+	if (GetCharacterOwner()) {
+		auto OwnerInput = GetCharacterOwner()->GetLastMovementInputVector().GetSafeNormal();
 		DodgeInDirection(OwnerInput);
 	}
 }
@@ -70,10 +74,10 @@ void UDodgeSystem::BeginPlay() {
 
 	// If lock on system exists hook into it to allow for dodge correction while locked.
 	// With current implementation Lazy Evaluation wouldn't help with dynamic binding.
-	auto LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
-	if (LockOnSystem) {
-		(LockOnSystem->OnActorLock).AddDynamic(this, &UDodgeSystem::SetLockedTarget);
-	}
+	ULockOnSystem* LockOnSystem;
+	PCPP_UE4::LazyGetCompWithInit(GetOwner(), LockOnSystem, [&](ULockOnSystem* Comp) {
+		(Comp->OnActorLock).AddDynamic(this, &UDodgeSystem::SetLockedTarget);
+	});
 }
 
 void UDodgeSystem::SetLockedTarget(AActor* NewTarget) {
