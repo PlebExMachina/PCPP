@@ -115,6 +115,24 @@ public:
 		return MemberVariable;
 	};
 
+	// Lazily get owner and run callback on the retrieved owner.
+	template<typename OwnerType, typename InitCallback>
+	static OwnerType* LazyGetOwnerWithInit(UActorComponent* Self, OwnerType*& MemberVariable, InitCallback Callback) {
+		if (MemberVariable) {
+			return MemberVariable;
+		}
+
+		if (Self) {
+			MemberVariable = Cast<OwnerType>(Self->GetOwner());
+		}
+
+		if (MemberVariable) {
+			Callback(MemberVariable);
+		}
+
+		return MemberVariable;
+	}
+
 	// Perform a callback when a value enters / exits a deadzone. Entering a deadzone is a less typical case so it is optional.
 	template<typename F1, typename F2>
 	static void DeadzoneAction(float CurrentAxis, float PreviousAxis, float deadzone, F1 ExitDeadzoneCallback, F2 EnterDeadzoneCallback) {

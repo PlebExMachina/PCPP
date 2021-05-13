@@ -4,6 +4,7 @@
 #include "LockOnCamera.h"
 #include "LockOnSystem.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "PCPP_UE4.h"
 
 ULockOnCamera::ULockOnCamera() {
 	LockedTarget = nullptr;
@@ -18,20 +19,20 @@ void ULockOnCamera::BeginPlay() {
 	UseControlRotationDefault = bUsePawnControlRotation;
 
 	// Bind to existing lock on system. If it doesn't exist it will behave like a normal camera.
-	auto LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
-	if (LockOnSystem) {
-		(LockOnSystem->OnActorLock).AddDynamic(this, &ULockOnCamera::LockChanged);
-	}
+	ULockOnSystem* LockOnSystem = nullptr;
+	PCPP_UE4::LazyGetCompWithInit(GetOwner(), LockOnSystem, [&](ULockOnSystem* Comp) {
+		(Comp->OnActorLock).AddDynamic(this, &ULockOnCamera::LockChanged);
+	});
 
-	auto PawnOwner = Cast<APawn>(GetOwner());
-
-	if (PawnOwner) {
-		OwnerController = PawnOwner->Controller;
-	}
+	APawn* PawnOwner = nullptr;
+	PCPP_UE4::LazyGetOwnerWithInit(this, PawnOwner, [&](APawn* Owner) {
+		OwnerController = Owner->Controller;
+	});
 
 }
 
 void ULockOnCamera::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction){
+	// Continuously track towards the locked on position if needed.
 	if (LockedTarget && OwnerController) {
 		FRotator NewCameraRotation = UKismetMathLibrary::RInterpTo(
 			OwnerController->GetControlRotation(),
@@ -44,18 +45,14 @@ void ULockOnCamera::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 	}
 }
 
-void ULockOnCamera::LockChanged(AActor * NewLock)
-{
-	UE_LOG(LogTemp, Warning, TEXT("Binding Called"));
-	if (!NewLock) {
-		SetComponentTickEnabled(false);
-		bUsePawnControlRotation = UseControlRotationDefault;
-		UE_LOG(LogTemp, Warning, TEXT("Binding nullptr"));
-	}
-	else {
+void ULockOnCamera::LockChanged(AActor * NewLock){
+	// Begin Tracking if there is an active target. End Tracking if there is no active target.
+	if (NewLock) {
 		SetComponentTickEnabled(true);
 		bUsePawnControlRotation = true;
-		UE_LOG(LogTemp, Warning, TEXT("Binding Lock Made"));
+	} else {
+		SetComponentTickEnabled(false);
+		bUsePawnControlRotation = UseControlRotationDefault;
 	}
 	LockedTarget = NewLock;
 }

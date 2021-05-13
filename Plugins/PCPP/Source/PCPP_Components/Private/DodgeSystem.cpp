@@ -74,7 +74,7 @@ void UDodgeSystem::BeginPlay() {
 
 	// If lock on system exists hook into it to allow for dodge correction while locked.
 	// With current implementation Lazy Evaluation wouldn't help with dynamic binding.
-	ULockOnSystem* LockOnSystem;
+	ULockOnSystem* LockOnSystem = nullptr;
 	PCPP_UE4::LazyGetCompWithInit(GetOwner(), LockOnSystem, [&](ULockOnSystem* Comp) {
 		(Comp->OnActorLock).AddDynamic(this, &UDodgeSystem::SetLockedTarget);
 	});
