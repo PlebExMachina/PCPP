@@ -50,12 +50,6 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TEnumAsByte<ECollisionChannel> CollisionChannel;
 
-	FCollisionQueryParams GetQueryParams();
-
-	FCollisionResponseParams GetCollisionResponseParams();
-
-	FCollisionShape GetTraceShape();
-
 	FVector GetNearLocation();
 	FVector GetFarLocation();
 
@@ -88,9 +82,5 @@ public:
 
 	// Cycles to a closer target.
 	UFUNCTION(BlueprintCallable)
-	bool CycleCloserLock();
-
-	// Cycles to a further target.
-	UFUNCTION(BlueprintCallable)
-	bool CycleFurtherLock();
+	bool CycleLock(int32 IndexOffset);
 };

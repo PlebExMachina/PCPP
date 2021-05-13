@@ -146,4 +146,15 @@ public:
 			}
 		}
 	}
+
+	class Math {
+		public:
+		static int32 Mod(int32 a, int32 b) {
+			int32 Out = a % b;
+			if (Out >= 0) {
+				return Out;
+			}
+			return Out + b;
+		}
+	};
 };

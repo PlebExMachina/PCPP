@@ -151,10 +151,10 @@ void UDDDDriver::TryCycleLock(float AxisValue) {
 	bool InputValid = !UKismetMathLibrary::InRange_FloatFloat(AxisValue, LockInputSensitivity*-1.0, LockInputSensitivity);
 	if (InputValid) {
 		if (AxisValue > 0.0) {
-			GetLockOnSystem()->CycleFurtherLock();
+			GetLockOnSystem()->CycleLock(+1);
 		}
 		if (AxisValue < 0.0) {
-			GetLockOnSystem()->CycleCloserLock();
+			GetLockOnSystem()->CycleLock(-1);
 		}
 	}
 }

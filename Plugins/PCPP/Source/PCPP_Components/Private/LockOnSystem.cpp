@@ -4,18 +4,17 @@
 #include "LockOnSystem.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "PCPP_UE4.h"
 
 //#define _DEBUG_LOCK_ON_SYSTEM_
 
 // Throwaway struct representing a "Sort by Distance" filter.
-struct FSortByDistance
-{
+struct FSortByDistance{
 	FSortByDistance(const FVector& InSourceLocation) : SourceLocation(InSourceLocation) {}
 
 	FVector SourceLocation;
 
-	bool operator()(const AActor& A, const AActor& B) const
-	{
+	bool operator()(const AActor& A, const AActor& B) const {
 		float DistanceA = FVector::DistSquared(SourceLocation, A.GetActorLocation());
 		float DistanceB = FVector::DistSquared(SourceLocation, B.GetActorLocation());
 
@@ -23,10 +22,35 @@ struct FSortByDistance
 	}
 };
 
+FCollisionQueryParams _GetQueryParams(AActor* Owner) {
+	// Ignore the owner.
+	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
+	QueryParams.AddIgnoredActor(Owner);
+
+	// Get  any primitives from the owner so that owner colliders don't get swept in.
+	TArray<UPrimitiveComponent*> Comps;
+	Owner->GetComponents<UPrimitiveComponent>(Comps);
+	for (auto I = Comps.CreateIterator(); I; ++I) {
+		QueryParams.AddIgnoredComponent(*I);
+	}
+
+	return QueryParams;
+}
+
+FCollisionResponseParams _GetCollisionResponseParams() {
+	FCollisionResponseParams CollisionResponse = FCollisionResponseParams::DefaultResponseParam;
+	return CollisionResponse;
+}
+
+FCollisionShape _GetTraceShape(float Radius) {
+	auto Shape = FCollisionShape();
+	Shape.ShapeType = ECollisionShape::Sphere;
+	Shape.Sphere.Radius = Radius;
+	return Shape;
+}
 
 // Sets default values for this component's properties
-ULockOnSystem::ULockOnSystem()
-{
+ULockOnSystem::ULockOnSystem() {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
@@ -42,51 +66,20 @@ ULockOnSystem::ULockOnSystem()
 
 void ULockOnSystem::BeginPlay() {
 	// Get Owner's camera and set it to CameraMode if it's player controlled.
-	auto PawnOwner = Cast<APawn>(GetOwner());
-	if (PawnOwner) {
-		if (PawnOwner->IsPlayerControlled()) {
+	APawn* PawnOwner = nullptr;
+	PCPP_UE4::LazyGetOwnerWithInit(this, PawnOwner, [&](APawn* Owner) {
+		if (Owner->IsPlayerControlled()) {
 			OwnerCamera = Cast<UCameraComponent>(GetOwner()->GetComponentByClass(UCameraComponent::StaticClass()));
 			CameraMode = true;
 		}
-	}
+	});
 
 	if (Config.ReceiveOnly) {
 		SetComponentTickEnabled(false);
 	}
 }
 
-FCollisionQueryParams ULockOnSystem::GetQueryParams()
-{
-	// Ignore the owner.
-	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
-	QueryParams.AddIgnoredActor(GetOwner());
-
-	// Get  any primitives from the owner so that owner colliders don't get swept in.
-	TArray<UPrimitiveComponent*> Comps;
-	GetOwner()->GetComponents<UPrimitiveComponent>(Comps);
-	for (auto I = Comps.CreateIterator(); I; ++I) {
-		QueryParams.AddIgnoredComponent(*I);
-	}
-
-	return QueryParams;
-}
-
-FCollisionResponseParams ULockOnSystem::GetCollisionResponseParams()
-{
-	FCollisionResponseParams CollisionResponse = FCollisionResponseParams::DefaultResponseParam;
-	return CollisionResponse;
-}
-
-FCollisionShape ULockOnSystem::GetTraceShape()
-{
-	auto Shape = FCollisionShape(); 
-	Shape.ShapeType = ECollisionShape::Sphere; 
-	Shape.Sphere.Radius = Config.LockRadius;
-	return Shape;
-}
-
-FVector ULockOnSystem::GetNearLocation()
-{
+FVector ULockOnSystem::GetNearLocation(){
 	// Project from Camera
 	if (CameraMode) {
 		return OwnerCamera->GetComponentLocation() + OwnerCamera->GetForwardVector()*Config.NearLockDistance;
@@ -95,8 +88,7 @@ FVector ULockOnSystem::GetNearLocation()
 	return GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector()*Config.NearLockDistance;
 }
 
-FVector ULockOnSystem::GetFarLocation()
-{
+FVector ULockOnSystem::GetFarLocation(){
 	// Project from Camera
 	if (CameraMode) {
 		return OwnerCamera->GetComponentLocation() + OwnerCamera->GetForwardVector()*Config.FarLockDistance;
@@ -115,9 +107,9 @@ bool ULockOnSystem::TraceLockableActors(TArray<AActor*>& Out)
 		GetFarLocation(),
 		FQuat(),
 		CollisionChannel,
-		GetTraceShape(),
-		GetQueryParams(),
-		GetCollisionResponseParams()
+		_GetTraceShape(Config.LockRadius),
+		_GetQueryParams(GetOwner()),
+		_GetCollisionResponseParams()
 	);
 
 
@@ -135,24 +127,25 @@ bool ULockOnSystem::TraceLockableActors(TArray<AActor*>& Out)
 	#endif
 
 	// Filter out only hit actors.
-	TArray<AActor*> OutActors;
-	for (auto I = SweptTargets.CreateIterator(); I; ++I) {
-		if ((I->Actor).IsValid() && I->bBlockingHit) {
-			OutActors.Add((I->Actor).Get());
+	TArray<AActor*> OutActors = {};
+	PCPP_UE4::ForEach(SweptTargets, [&](FHitResult& HitResult) {
+		if ((HitResult.Actor).IsValid() && HitResult.bBlockingHit) {
+			OutActors.Add(HitResult.Actor.Get());
 		}
-	}
+	});
 
 	// Filter out only valid lockable targets.
-	OutActors = OutActors.FilterByPredicate([&](AActor* const I) {
-		auto LockOnSystem = Cast<ULockOnSystem>(I->GetComponentByClass(ULockOnSystem::StaticClass()));
-		if (!LockOnSystem) {
-			return false;
+	TArray<AActor*> LockableActors = {};
+	PCPP_UE4::ForEach(OutActors, [&](AActor* Actor) {
+		auto LockOnSystem = Cast<ULockOnSystem>(Actor->GetComponentByClass(ULockOnSystem::StaticClass()));
+		if (LockOnSystem && LockOnSystem->Lockable) {
+			LockableActors.Add(Actor);
 		}
-		return LockOnSystem->Lockable;
 	});
 
 	// Sort targets by distance.
-	OutActors.Sort(FSortByDistance(GetOwner()->GetActorLocation()));
+	LockableActors.Sort(FSortByDistance(GetOwner()->GetActorLocation()));
+
 	Out = OutActors;
 
 	// Return success so long as atleast one was found.
@@ -163,8 +156,7 @@ bool ULockOnSystem::TraceLockableActors(TArray<AActor*>& Out)
 	return false;
 }
 
-void ULockOnSystem::SetNewLock(AActor * NewLockReference)
-{
+void ULockOnSystem::SetNewLock(AActor * NewLockReference){
 	TargetComponent = Cast<ULockOnSystem>(NewLockReference->GetComponentByClass(ULockOnSystem::StaticClass()));
 	OnActorLock.Broadcast(NewLockReference);
 }
@@ -172,8 +164,7 @@ void ULockOnSystem::SetNewLock(AActor * NewLockReference)
 
 
 // Called every frame
-void ULockOnSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
+void ULockOnSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction){
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	if (LockedOn) {
@@ -184,7 +175,8 @@ void ULockOnSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 		else {
 			// TargetComponent is no longer lockable, attempt to cycle to a closer lock.
 			if (!(TargetComponent->Lockable)) {
-				if (!CycleCloserLock()) {
+				// If cycling fails then just end lock on.
+				if (!CycleLock(-1)) {
 					EndLockOn();
 				}
 			}
@@ -194,7 +186,7 @@ void ULockOnSystem::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 bool ULockOnSystem::BeginLockOn()
 {
-	// Failure, Already Locked
+	// Already Locked, Do Nothing
 	if (LockedOn) {
 		return false;
 	}
@@ -203,6 +195,7 @@ bool ULockOnSystem::BeginLockOn()
 	TArray<AActor*> Actors = {};
 	auto LockSuccessful = TraceLockableActors(Actors);
 	if (LockSuccessful) {
+		// Begin by locking closest actor.
 		LockedOn = true;
 		TargetComponent = Cast<ULockOnSystem>((Actors[0])->GetComponentByClass(ULockOnSystem::StaticClass()));
 		OnActorLock.Broadcast(Actors[0]);
@@ -212,8 +205,8 @@ bool ULockOnSystem::BeginLockOn()
 }
 
 void ULockOnSystem::EndLockOn() {
+	// Do nothing if already not locked on.
 	if (!LockedOn) {
-		// Do nothing if already not locked.
 		return;
 	}
 	LockedOn = false;
@@ -221,45 +214,8 @@ void ULockOnSystem::EndLockOn() {
 	OnActorLock.Broadcast(nullptr);
 }
 
-bool ULockOnSystem::CycleCloserLock() {
-	// No reference actor. Do Nothing.
-	if (!TargetComponent) {
-		return false;
-	}
-
-	// Perform Trace
-	TArray<AActor*> Actors = {};
-	TraceLockableActors(Actors);
-	
-	// If no targets then End Lock.
-	if (Actors.Num() == 0) {
-		// If search failed (such as on auto re-lock) then end lock and report failure.
-		EndLockOn();
-		return false;
-	}
-
-	int32 ReferenceIndex = Actors.Find(TargetComponent->GetOwner());
-
-	// Active target now missing, default to closest.
-	if (ReferenceIndex == INDEX_NONE) {
-		SetNewLock(Actors[0]);
-		return true;
-	}
-
-	// First member case, cycle to furthest.
-	if (ReferenceIndex == 0) {
-		SetNewLock(Actors.Last());
-	}
-	// Otherwise Cycle Closer
-	else {
-		SetNewLock(Actors[abs((ReferenceIndex - 1) % Actors.Num())]);
-	}
-
-	return true;
-}
-
-bool ULockOnSystem::CycleFurtherLock() {
-	// No reference actor. Exit.
+bool ULockOnSystem::CycleLock(int32 IndexOffset) {
+	// No reference. Do nothing.
 	if (!TargetComponent) {
 		return false;
 	}
@@ -274,6 +230,7 @@ bool ULockOnSystem::CycleFurtherLock() {
 		return false;
 	}
 
+
 	int32 ReferenceIndex = Actors.Find(TargetComponent->GetOwner());
 
 	// Reference not in array, default to closest.
@@ -281,9 +238,9 @@ bool ULockOnSystem::CycleFurtherLock() {
 		SetNewLock(Actors[0]);
 		return true;
 	}
-	// Otherwise Cycle further.
-	SetNewLock(Actors[abs((ReferenceIndex + 1) % Actors.Num())]);
 
+	// Otherwise Cycle.
+	SetNewLock(Actors[PCPP_UE4::Math::Mod((ReferenceIndex + IndexOffset),Actors.Num())]);
 	return true;
 }
 
