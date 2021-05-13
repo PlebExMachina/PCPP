@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Kismet/KismetMathLibrary.h"
 
 /**
  * A collection of common (purely data based) patterns for interacting with UE4.
@@ -82,6 +83,20 @@ public:
 		return MemberVariable;
 	};
 
+	// Lazily get owner,
+	template<typename OwnerType>
+	static OwnerType* LazyGetOwner(UActorComponent* Self, OwnerType*& MemberVariable) {
+		if (MemberVariable) {
+			return MemberVariable;
+		}
+
+		if (Self) {
+			MemberVariable = Cast<OwnerType>(Self->GetOwner());
+		}
+
+		return MemberVariable;
+	}
+
 	// Lazily get component and run init callback if needed.
 	template<typename CompType, typename InitCallback>
 	static CompType* LazyGetCompWithInit(AActor* Owner, CompType*& MemberVariable, InitCallback Callback){
@@ -100,4 +115,17 @@ public:
 		return MemberVariable;
 	};
 
+	// Perform a callback when a value enters / exits a deadzone. Entering a deadzone is a less typical case so it is optional.
+	template<typename F1, typename F2>
+	static void DeadzoneAction(float CurrentAxis, float PreviousAxis, float deadzone, F1 ExitDeadzoneCallback, F2 EnterDeadzoneCallback) {
+		bool PreviouslyInDeadzone = UKismetMathLibrary::InRange_FloatFloat(PreviousAxis, deadzone*-1.f, deadzone);
+		bool CurrentlyInDeadzone = UKismetMathLibrary::InRange_FloatFloat(CurrentAxis, deadzone*-1.f, deadzone);
+		if (PreviouslyInDeadzone != CurrentlyInDeadzone) {
+			if (CurrentlyInDeadzone) {
+				EnterDeadzoneCallback();
+			} else {
+				ExitDeadzoneCallback();
+			}
+		}
+	}
 };

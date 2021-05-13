@@ -3,10 +3,10 @@
 
 #include "DDDDriver.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "PCPP_UE4.h"
 
 // Sets default values for this component's properties
-UDDDDriver::UDDDDriver()
-{
+UDDDDriver::UDDDDriver(){
 	PrimaryComponentTick.bCanEverTick = true;
 	MovementComponent = nullptr;
 	CharacterOwner = nullptr;
@@ -14,40 +14,25 @@ UDDDDriver::UDDDDriver()
 	PreviousRightTurnInput = 0.f;
 	LockInputSensitivity = 0.25;
 	OwnerCamera = nullptr;
-	LockCycleAvailable = true;
 	// ...
 }
 
 
-void UDDDDriver::TrackLockOn(AActor * ActorLocked)
-{
+void UDDDDriver::TrackLockOn(AActor * ActorLocked){
 	// Watch LockOnComponent and update lock state accordingly.
-	if (ActorLocked) {
-		LockedOn = true;
-	} else {
-		LockedOn = false;
-	}
+	LockedOn = (ActorLocked != nullptr);
 }
 
-UDDDCharacterMovement * UDDDDriver::GetMovementComponent()
-{
-	if(!MovementComponent){
-		MovementComponent = Cast<UDDDCharacterMovement>(GetOwner()->GetComponentByClass(UDDDCharacterMovement::StaticClass()));
-	}
-	return MovementComponent;
+UDDDCharacterMovement * UDDDDriver::GetMovementComponent(){
+	return PCPP_UE4::LazyGetComp(GetOwner(), MovementComponent);
 }
 
-UCameraComponent * UDDDDriver::GetOwnerCamera()
-{
-	if (!OwnerCamera) {
-		OwnerCamera = Cast<UCameraComponent>(GetOwner()->GetComponentByClass(UCameraComponent::StaticClass()));
-	}
-	return OwnerCamera;
+UCameraComponent * UDDDDriver::GetOwnerCamera(){
+	return PCPP_UE4::LazyGetComp(GetOwner(), OwnerCamera);
 }
 
 // Called when the game starts
-void UDDDDriver::BeginPlay()
-{
+void UDDDDriver::BeginPlay(){
 	Super::BeginPlay();
 	GetMovementComponent();
 	GetCharacterOwner();
@@ -61,10 +46,10 @@ void UDDDDriver::BindInputs(
 	FName Sprint,
 	FName Crouch,
 	FName UpTurnAxis,
-	FName RightTurnAxis
-) {
+	FName RightTurnAxis) {
 	// Bind set of movements to corresponding axis / input names.
 	if (InputComponent) { 
+		// Movement
 		if (ForwardMovementAxis != NAME_None) {
 			InputComponent->BindAxis(ForwardMovementAxis,this,&UDDDDriver::MoveForward);
 		}
@@ -78,6 +63,7 @@ void UDDDDriver::BindInputs(
 		if (Crouch != NAME_None) {
 			InputComponent->BindAction(Crouch, EInputEvent::IE_Pressed, this, &UDDDDriver::ToggleCrouch);
 		}
+		// Turning / Camera
 		if (UpTurnAxis != NAME_None) {
 			InputComponent->BindAxis(UpTurnAxis, this, &UDDDDriver::TurnUp);
 		}
@@ -87,33 +73,31 @@ void UDDDDriver::BindInputs(
 	}
 }
 
-void UDDDDriver::MoveForward(float AxisValue)
-{
+void UDDDDriver::MoveForward(float AxisValue){
 	if (GetMovementComponent() && GetOwnerCamera()) {
 		auto CameraRotation = GetOwnerCamera()->GetComponentRotation();
+		// Remove pitch bias so that forward vector is correct length.
 		CameraRotation.Pitch = 0.f;
 		GetMovementComponent()->AddInputVector(UKismetMathLibrary::GetForwardVector(CameraRotation) * AxisValue);
 	}
 }
 
-void UDDDDriver::MoveRight(float AxisValue)
-{
+void UDDDDriver::MoveRight(float AxisValue){
 	if (GetMovementComponent() && GetOwnerCamera()) {
 		auto CameraRotation = GetOwnerCamera()->GetComponentRotation();
+		// Remove pitch bias so that right vector is correct length.
 		CameraRotation.Pitch = 0.f;
 		GetMovementComponent()->AddInputVector(UKismetMathLibrary::GetRightVector(CameraRotation) * AxisValue);
 	}
 }
 
-void UDDDDriver::BeginSprint()
-{
+void UDDDDriver::BeginSprint(){
 	if (GetMovementComponent()) {
 		GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Run);
 	}
 }
 
-void UDDDDriver::EndSprint()
-{
+void UDDDDriver::EndSprint(){
 	if (GetMovementComponent()) {
 		if (GetMovementComponent()->GetDDDMovementMode() == EDDDMovementMode::DDD_Run) {
 			GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Walk);
@@ -121,8 +105,7 @@ void UDDDDriver::EndSprint()
 	}
 }
 
-void UDDDDriver::ToggleCrouch()
-{
+void UDDDDriver::ToggleCrouch(){
 	if (GetMovementComponent()) {
 		if (GetMovementComponent()->GetDDDMovementMode() == EDDDMovementMode::DDD_Crouch) {
 			GetMovementComponent()->SetDDDMovementMode(EDDDMovementMode::DDD_Walk);
@@ -132,71 +115,56 @@ void UDDDDriver::ToggleCrouch()
 	}
 }
 
-void UDDDDriver::TurnRight(float AxisValue)
-{
-	VerifyLockCycleAvailable();
+void UDDDDriver::TurnRight(float AxisValue){
 	if (GetMovementComponent()) {
 		if (!LockedOn) {
 			if (GetCharacterOwner()) {
 				GetCharacterOwner()->AddControllerYawInput(AxisValue);
 			}
 		} else {
-			TryCycleLock(AxisValue);
+			PCPP_UE4::DeadzoneAction(AxisValue, PreviousRightTurnInput, LockInputSensitivity, [&]() {
+				// Cycle lock only when InDeadzone -> OutsideDeadzone
+				TryCycleLock(AxisValue);
+			}, []() {});
 		}
 	}
+	PreviousRightTurnInput = AxisValue;
 }
 
-void UDDDDriver::TurnUp(float AxisValue)
-{
-	VerifyLockCycleAvailable();
+void UDDDDriver::TurnUp(float AxisValue){
 	if (GetMovementComponent()) {
 		if (!LockedOn) {
 			if (GetCharacterOwner()) {
 				GetCharacterOwner()->AddControllerPitchInput(AxisValue);
 			}
 		} else {
-			TryCycleLock(AxisValue);
+			// Cycle lock only when InDeadzone -> OutsideDeadzone
+			PCPP_UE4::DeadzoneAction(AxisValue, PreviousUpTurnInput, LockInputSensitivity, [&]() {
+				TryCycleLock(AxisValue);
+			}, []() {});
 		}
 	}
+	PreviousUpTurnInput = AxisValue;
 }
 
 void UDDDDriver::TryCycleLock(float AxisValue) {
 	bool InputValid = !UKismetMathLibrary::InRange_FloatFloat(AxisValue, LockInputSensitivity*-1.0, LockInputSensitivity);
-	if (LockCycleAvailable && InputValid) {
+	if (InputValid) {
 		if (AxisValue > 0.0) {
 			GetLockOnSystem()->CycleFurtherLock();
 		}
 		if (AxisValue < 0.0) {
 			GetLockOnSystem()->CycleCloserLock();
 		}
-		LockCycleAvailable = false;
 	}
 }
 
-ACharacter * UDDDDriver::GetCharacterOwner()
-{
-	if (!CharacterOwner) {
-		CharacterOwner = Cast<ACharacter>(GetOwner());
-	}
-	return CharacterOwner;
+ACharacter * UDDDDriver::GetCharacterOwner(){
+	return PCPP_UE4::LazyGetOwner(this,CharacterOwner);
 }
 
-ULockOnSystem * UDDDDriver::GetLockOnSystem()
-{
-	if (!LockOnSystem) {
-		LockOnSystem = Cast<ULockOnSystem>(GetOwner()->GetComponentByClass(ULockOnSystem::StaticClass()));
-		// Setup turn overrides.
-		if (LockOnSystem) {
-			LockOnSystem->OnActorLock.AddDynamic(this, &UDDDDriver::TrackLockOn);
-		}
-	}
-	return LockOnSystem;
-}
-
-void UDDDDriver::VerifyLockCycleAvailable() {
-	bool UpReset = UKismetMathLibrary::InRange_FloatFloat(PreviousUpTurnInput, LockInputSensitivity*-1, LockInputSensitivity);
-	bool RightReset = UKismetMathLibrary::InRange_FloatFloat(PreviousRightTurnInput, LockInputSensitivity*-1, LockInputSensitivity);
-	if (UpReset && RightReset) {
-		LockCycleAvailable = true;
-	}
+ULockOnSystem * UDDDDriver::GetLockOnSystem(){
+	return PCPP_UE4::LazyGetCompWithInit(GetOwner(), LockOnSystem, [&](ULockOnSystem* Comp) {
+		Comp->OnActorLock.AddDynamic(this, &UDDDDriver::TrackLockOn);
+	});
 }

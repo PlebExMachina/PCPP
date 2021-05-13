@@ -34,10 +34,9 @@ protected:
 
 	float PreviousUpTurnInput;
 	float PreviousRightTurnInput;
-	bool LockCycleAvailable;
-	void VerifyLockCycleAvailable();
 	void TryCycleLock(float AxisValue);
 
+	// The deadzone value for locking.
 	UPROPERTY(EditAnywhere)
 	float LockInputSensitivity;
 
