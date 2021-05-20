@@ -172,12 +172,6 @@ public:
 		return nullptr;
 	};
 
-	/*// Attempt to get an existing item in a TArray cache. Key is used as fallback if the item doesn't exist.
-	template<typename CompType>
-	static CompType GetCachedComponentByTag(AActor* Ctx, int32 Index, const FString& Key, const TArray<CompType>& Cache){
-	
-	};*/
-
 	class Math {
 		public:
 		static int32 Mod(int32 a, int32 b) {
@@ -255,6 +249,26 @@ public:
 				}
 			}
 			return false;
+		}
+	};
+
+	/* Utilities that operate so long as an enum fulfills the PCPP_UE4 enum interface.
+		All that it required is for the last member of the enum to be "MAX"
+	*/
+	class EnumMap {
+		template<typename EnumType,typename ValueType>
+		static void Init(TArray<ValueType>& Map) {
+			Map.ResizeTo((int32)EnumType::Max);
+		}
+
+		template<typename EnumType, typename ValueType>
+		static ValueType Get(EnumType Key, TArray<ValueType>& Map) {
+			return Map[(int32)Key];
+		}
+
+		template<typename EnumType, typename ValueType>
+		static void Set(EnumType Key, ValueType Value, TArray<ValueType>& Map) {
+			Map[(int32)Key] = Value;
 		}
 	};
 };

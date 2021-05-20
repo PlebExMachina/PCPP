@@ -27,7 +27,6 @@ bool UNetReplicate::Validate(const FString& ObjectID, const FString& ReplicateDa
 }
 
 INetReplicatable* UNetReplicate::GetCachedComponentByTag(const FString& ObjectID) {
-
 	return PCPP_UE4::GetCachedComponentByTag<UActorComponent, INetReplicatable>(
 		GetOwner(), 
 		ObjectID, 
