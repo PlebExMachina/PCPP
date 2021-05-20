@@ -3,6 +3,7 @@
 
 #include "NetReplicate.h"
 #include "Serialization/JsonSerializer.h"
+#include "PCPP_UE4.h"
 
 UNetReplicate::UNetReplicate()
 {
@@ -12,20 +13,13 @@ UNetReplicate::UNetReplicate()
 
 void UNetReplicate::_ProcessReliableRequestFromInterface(UActorComponent * Target, bool Reliable)
 {
-	if (GetPawnOwner() && GetPawnOwner()->IsLocallyControlled()) {
+	PCPP_UE4::Network::Local(GetPawnOwner(), [&]() {
 		auto Interface = Cast<INetReplicatable>(Target);
 		if (Interface) {
-			// Create heap instance for Shared Pointer through Copy Constructor
-			TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject(Interface->CreateReplicationData()));
-
-			// Write Object to String
-			FString OutputString;
-			TSharedRef<TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&OutputString);
-			FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-
-			RequestReplication(Interface->_GetTag(), OutputString, true);
+			auto ReplicationData = PCPP_UE4::JSON::ToString(Interface->CreateReplicationData());
+			RequestReplication(Interface->_GetTag(), ReplicationData, true);
 		}
-	}
+	});
 }
 
 bool UNetReplicate::Validate(const FString& ObjectID, const FString& ReplicateData) {
@@ -33,36 +27,21 @@ bool UNetReplicate::Validate(const FString& ObjectID, const FString& ReplicateDa
 }
 
 INetReplicatable* UNetReplicate::GetCachedComponentByTag(const FString& ObjectID) {
-	// Get Existing Cached Component
-	auto FoundComp = CachedComponents.Find(ObjectID);
-	if (FoundComp) {
-		return *FoundComp;
-	}
 
-	// Search for component to Cache
-	auto comps = GetPawnOwner()->GetComponentsByTag(UActorComponent::StaticClass(), FName(*ObjectID));
-	for (auto i = comps.CreateIterator(); i; ++i) {
-		auto comp = Cast<INetReplicatable>(*i);
-		if (comp) {
-			CachedComponents.Add(ObjectID, comp);
-			return comp;
-		}
-	}
-
-	// Failure Case
-	return nullptr;
+	return PCPP_UE4::GetCachedComponentByTag<UActorComponent, INetReplicatable>(
+		GetOwner(), 
+		ObjectID, 
+		CachedComponents
+	);
 }
 
 void UNetReplicate::ProcessReplicationRequest(const FString& ObjectID, const FString& ReplicateData) {
 	if (GetPawnOwner() && !GetPawnOwner()->IsLocallyControlled()) {
-		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(ReplicateData);
-		TSharedPtr<FJsonObject> JsonParsed;
-		if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
-			if (JsonParsed.IsValid()) {
-				auto comp = GetCachedComponentByTag(ObjectID);
-				if (comp) {
-					comp->ReceiveReplicate(*JsonParsed.Get());
-				}
+		FJsonObject Data;
+		if (PCPP_UE4::JSON::ToObject(ReplicateData, Data)) {
+			auto comp = GetCachedComponentByTag(ObjectID);
+			if (comp) {
+				comp->ReceiveReplicate(Data);
 			}
 		}
 	}
@@ -97,21 +76,18 @@ bool UNetReplicate::BroadcastServerReliable_Validate(const FString& ObjectID, co
 }
 
 void UNetReplicate::RequestReplication(const FString& ObjectTag, const FString& ObjectData, bool Reliable) {
-	if (GetPawnOwner() && GetPawnOwner()->IsLocallyControlled()) {
+	PCPP_UE4::Network::Local(GetPawnOwner(), [&]() {
 		if (Reliable) {
 			BroadcastServerReliable(ObjectTag, ObjectData);
-		} else {
+		}
+		else {
 			BroadcastServerUnreliable(ObjectTag, ObjectData);
 		}
-	}
+	});
 }
 
 APawn* UNetReplicate::GetPawnOwner() {
-	if (PawnOwner) {
-		return PawnOwner;
-	}
-	PawnOwner = Cast<APawn>(GetOwner());
-	return PawnOwner;
+	return PCPP_UE4::LazyGetOwner(this, PawnOwner);
 }
 
 void UNetReplicate::RegisterReplication(float ReplicationFrequency, INetReplicatable* ReplicatingComponent) {
@@ -121,19 +97,14 @@ void UNetReplicate::RegisterReplication(float ReplicationFrequency, INetReplicat
 		// Generate Tag if needed. (Tag is needed for all parties.)
 		ReplicatingComponent->_GetTag();
 
-		// Second Sanity Check, only perform if owner.
-		if (GetPawnOwner() && GetPawnOwner()->IsLocallyControlled()) {
+		// Second Sanity Check, only perform locally
+		PCPP_UE4::Network::Local(GetPawnOwner(), [&]() {
 			// Bind implementation to Implementor
 			ReplicatingComponent->_ReplicationTimerDelegate.BindLambda([&ReplicatingComponent, this]() {
 				// Create heap instance for Shared Pointer through Copy Constructor
-				TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject(ReplicatingComponent->CreateReplicationData()));
+				auto Data = PCPP_UE4::JSON::ToString(ReplicatingComponent->CreateReplicationData());
 
-				// Write Object to String
-				FString OutputString;
-				TSharedRef<TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&OutputString);
-				FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-
-				this->RequestReplication(ReplicatingComponent->_GetTag(), OutputString);
+				this->RequestReplication(ReplicatingComponent->_GetTag(), Data);
 			});
 
 			// Begin Timer Event on Implementor's Behalf
@@ -146,6 +117,6 @@ void UNetReplicate::RegisterReplication(float ReplicationFrequency, INetReplicat
 			);
 
 			ReplicatingComponent->_ReliableReplicationDelegate.AddDynamic(this, &UNetReplicate::_ProcessReliableRequestFromInterface);
-		}
+		});
 	}
 }

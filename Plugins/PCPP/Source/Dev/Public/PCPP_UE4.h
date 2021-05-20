@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Serialization/JsonSerializer.h"
 
 /**
  * A collection of common (purely data based) patterns for interacting with UE4.
@@ -147,6 +148,36 @@ public:
 		}
 	}
 
+	// Attempt to get an existing item in a TMap cache.
+	template<typename CompType, typename OutputType = CompType>
+	static OutputType* GetCachedComponentByTag(AActor* Ctx, const FString& Key, TMap<FString, OutputType*>& Cache) {
+
+		// Get Existing Cached Component
+		auto FoundComp = Cache.Find(Key);
+		if (FoundComp) {
+			return *FoundComp;
+		}
+
+		// Search for component to Cache
+		auto Comps = Ctx->GetComponentsByTag(CompType::StaticClass(), FName(*Key));
+		for (auto i = Comps.CreateIterator(); i; ++i) {
+			auto Comp = Cast<OutputType>(*i);
+			if (Comp) {
+				Cache.Add(Key, Comp);
+				return Comp;
+			}
+		}
+
+		// Failure Case
+		return nullptr;
+	};
+
+	/*// Attempt to get an existing item in a TArray cache. Key is used as fallback if the item doesn't exist.
+	template<typename CompType>
+	static CompType GetCachedComponentByTag(AActor* Ctx, int32 Index, const FString& Key, const TArray<CompType>& Cache){
+	
+	};*/
+
 	class Math {
 		public:
 		static int32 Mod(int32 a, int32 b) {
@@ -155,6 +186,75 @@ public:
 				return Out;
 			}
 			return Out + b;
+		}
+	};
+
+	class Network {
+		public:
+			// Runs callback only for Client.
+			template<typename Callback>
+			static void Client(APawn* Ctx, Callback Foo) {
+				if (Ctx && !(Ctx->GetWorld()->IsServer())) {
+					Foo();
+				}
+			}
+
+			// Runs callback only for Server.
+			template<typename Callback>
+			static void Server(APawn* Ctx, Callback Foo) {
+				if (Ctx && !(Ctx->GetWorld()->IsServer())) {
+					Foo();
+				}
+			}
+
+			// Runs only for Local Context (Locally Controlled), may execute on specific client or server.
+			template<typename Callback>
+			static void Local(APawn* Ctx, Callback Foo) {
+				if (Ctx && (Ctx->IsLocallyControlled())) {
+					Foo();
+				}
+			}
+
+			// Shorthand function for mapping to multiple Context Types
+			template<typename Callback>
+			static void Execute(APawn* Ctx, Callback Foo, bool Client, bool Server, bool Local) {
+				if (Client) {
+					Client(Ctx, Foo);
+				}
+				if (Server) {
+					Server(Ctx, Foo);
+				}
+				if (Local) {
+					Local(Ctx, Foo);
+				}
+			}
+	};
+
+	class JSON {
+		public:
+		static FString ToString(const FJsonObject& Object) {
+			// Create heap instance for Shared Pointer through Copy Constructor
+			TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject(Object));
+
+			// Write Object to String
+			FString OutputString;
+			TSharedRef<TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&OutputString);
+			FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+			
+			return OutputString;
+		}
+		static bool ToObject(const FString& String, FJsonObject& Out) {
+			TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(ReplicateData);
+			TSharedPtr<FJsonObject> JsonParsed;
+			if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
+				if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
+					if (JsonParsed.IsValid()) {
+						Out = *(JsonParsed.Get());
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 	};
 };
