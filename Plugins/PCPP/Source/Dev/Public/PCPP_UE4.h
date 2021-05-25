@@ -238,7 +238,7 @@ public:
 			return OutputString;
 		}
 		static bool ToObject(const FString& String, FJsonObject& Out) {
-			TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(ReplicateData);
+			TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(String);
 			TSharedPtr<FJsonObject> JsonParsed;
 			if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
 				if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
