@@ -41,6 +41,11 @@
 			"LoadingPhase": "PreDefault"
 		},
 		{
+			"Name": "PCPP_AI",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
 			"Name": "Dev",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
