@@ -8,9 +8,10 @@
 
 /**
  * Represents a decorator node which can handle generic comparisons between common blackboard data types.
+ * Supports the following modes: lt, lte, gt, gte, eq
  */
 UCLASS()
-class PCPP_AI_API UComp : public UBTDecorator
+class PCPP_AI_API UBTDComp : public UBTDecorator
 {
 	GENERATED_BODY()
 

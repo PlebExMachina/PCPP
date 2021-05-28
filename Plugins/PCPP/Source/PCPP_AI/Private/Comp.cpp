@@ -5,7 +5,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AI_UTILS.h"
 
-bool UComp::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const {
+bool UBTDComp::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const {
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
 	FString Function = Mode.ToLower();
 
