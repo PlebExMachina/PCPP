@@ -3,10 +3,3 @@
 
 #include "NetworkPlayerControllerDataStore.h"
 
-NetworkPlayerControllerDataStore::NetworkPlayerControllerDataStore()
-{
-}
-
-NetworkPlayerControllerDataStore::~NetworkPlayerControllerDataStore()
-{
-}
