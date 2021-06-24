@@ -27,13 +27,16 @@ void UPollingClientComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	auto GetPollingMode = [&](AActor* Owner) {
+		// GameMode only exists on the server and acts as the sole server authoritative object for polling.
 		if(Cast<AGameModeBase>(Owner)) {
 			return EPollingMode::IsServer;
 		}
+		// Player controller exists only on local client and server so it is the authoritative client.
 		if (Cast<APlayerController>(Owner)) {
 			return EPollingMode::IsClient;
 		}
 
+		// As a component it may be that it is attached to a pawn instead of controller, so the owning controller needs to be checked.
 		auto PawnOwner = Cast<APawn>(Owner);
 		if (PawnOwner) {
 			if (Cast<APlayerController>(PawnOwner->GetController())) {
@@ -45,10 +48,13 @@ void UPollingClientComponent::BeginPlay()
 
 	auto GetImplementation = [&]() {
 		IPollable* Null = nullptr;
+
+		// Check parent for implementation.
 		auto OwnerImplements = Cast<IPollable>(GetOwner());
 		if (OwnerImplements) {
 			return OwnerImplements;
 		} else {
+			// Checks siblings for implementation.
 			for(auto i = (GetOwner()->GetComponents()).CreateConstIterator(); i; ++i) {
 				auto CompImplements = Cast<IPollable>(*i);
 				if (CompImplements) {
@@ -62,6 +68,7 @@ void UPollingClientComponent::BeginPlay()
 	_PollingMode = GetPollingMode(GetOwner());
 	_Implementation = GetImplementation();
 
+	// Add to global pollers list for server sided poll requests.
 	_Pollers.Add(this);
 	// ...
 	
@@ -92,6 +99,7 @@ void UPollingClientComponent::ServerPolled_Implementation(const FString & Endpoi
 	if (_Implementation) {
 		auto ResponseObject = _Implementation->MakeResponseObject(Endpoint);
 		auto ResponseString = PCPP_UE4::JSON::ToString(ResponseObject);
+		// Send data from server back to the caller.
 		Caller->ClientReceiveResponse(Endpoint, ResponseString);
 	}
 }
@@ -100,10 +108,13 @@ void UPollingClientComponent::ClientPolled_Implementation(const FString & Endpoi
 	if (_Implementation) {
 		auto ResponseObject = _Implementation->MakeResponseObject(Endpoint);
 		auto ResponseString = PCPP_UE4::JSON::ToString(ResponseObject);
+
+		// Data received from client, but executing on server. So GameMode exists in this context.
 		auto GameMode = GetWorld()->GetAuthGameMode();
 		if (GameMode) {
 			auto Comp = Cast<UPollingClientComponent>(GameMode->GetComponentByClass(UPollingClientComponent::StaticClass()));
 			if (Comp) {
+				// Because the client was polled, the server should receive the response.
 				Comp->ServerReceiveResponse(Endpoint, ResponseString, this);
 			}
 		}
@@ -133,6 +144,7 @@ void UPollingClientComponent::TryPoll(const FString Endpoint) {
 }
 
 void UPollingClientComponent::BeginDestroy() {
+	// Remove self from global pollers list.
 	_Pollers.Remove(this);
 	Super::BeginDestroy();
 }

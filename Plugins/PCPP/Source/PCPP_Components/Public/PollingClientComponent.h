@@ -14,6 +14,14 @@ enum class EPollingMode : uint8 {
 	IsServer,
 };
 
+/*
+* Acts as a liasion for polling data between Client and Server contexts.
+* Auto-detects if it is in Server Context (Component of AGamemode) 
+* or Client Context (Component of PlayerController or, Component of Pawn which is controlled by PlayerController)
+* 
+* The parent or a sibling that implements IPollable will define how to respond to requests as well as how to handle data once
+* it is successfully polled.
+*/
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PCPP_COMPONENTS_API UPollingClientComponent : public UActorComponent
 {
@@ -36,21 +44,26 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
+	// Callback From ClientPolled so that the server receives the polled data.
 	UFUNCTION(Client, Reliable)
 	void ServerReceiveResponse(const FString& Endpoint, const FString& Data, UPollingClientComponent* Caller);
 
+	// Callback from ServerPolled so that the client receives the polled data.
 	UFUNCTION(Server, Reliable)
 	void ClientReceiveResponse(const FString& Endpoint, const FString& Data);
 
+	// Client Requests Endpoint, Executes on Server
 	UFUNCTION(Client, Reliable)
 	void ServerPolled(const FString& Endpoint, UPollingClientComponent* Caller);
 
+	// Server Requests Endpoint, Executes on Client
 	UFUNCTION(Server, Reliable)
 	void ClientPolled(const FString& Endpoint);
 
 
 
-public:	
+public:
+	// Attempts to poll corresponding UPollingClientComponent(s) in the autodetected context (either client or server)
 	UFUNCTION(BlueprintCallable)
 	void TryPoll(const FString Endpoint);
 	
