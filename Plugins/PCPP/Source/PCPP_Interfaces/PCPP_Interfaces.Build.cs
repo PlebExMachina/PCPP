@@ -10,6 +10,7 @@ public class PCPP_Interfaces : ModuleRules {
             "CoreUObject",
             "Engine",
             "Json",
+            "PCPP_Components",
             "JsonUtilities",
             "Dev"
         });
