@@ -27,17 +27,33 @@ class PCPP_INTERFACES_API IPollable
 public:
 	// Creates a JSON Object for the purpose of sending a response to a poll endpoint.
 	virtual FJsonObject MakeResponseObject(const FString& Endpoint) {
+		UE_LOG(LogTemp, Warning, TEXT("MakeResponseObject Inner"));
+		if (Endpoint == "TEST") {
+			UE_LOG(LogTemp, Warning, TEXT("MakeResponseObject TEST Endpoint"));
+			FJsonObject Out; Out.SetStringField("TEST","DUMMY");
+			return Out;
+		}
 		return FJsonObject();
 	}
 
 	// Responds to a JSON Object sent in response (client context.)
 	virtual void ClientGetResponse(const FString& Endpoint, const FJsonObject& Response) {
-	
+		UE_LOG(LogTemp, Warning, TEXT("ClientGetResponse Inner"));
+		if (Endpoint == "TEST") {
+			UE_LOG(LogTemp, Warning, TEXT("ClientGetResponse TEST Endpoint"));
+			auto StringField = Response.GetStringField("TEST");
+			UE_LOG(LogTemp, Warning, TEXT("Client Received Poll: %s"), *StringField);
+		}
 	}
 
 	// Responds to a JSON Object sent in response (server context.)
 	virtual void ServerGetResponse(const FString& Endpoint, const FJsonObject& Response, UPollingClientComponent* Caller) {
-	
+		UE_LOG(LogTemp, Warning, TEXT("ServerGetResponse Inner"));
+		if (Endpoint == "TEST") {
+			UE_LOG(LogTemp, Warning, TEXT("ServerGetResponse TEST Endpoint"));
+			auto StringField = Response.GetStringField("TEST");
+			UE_LOG(LogTemp, Warning, TEXT("Server Received Poll: %s"), *StringField);
+		}
 	}
 
 };

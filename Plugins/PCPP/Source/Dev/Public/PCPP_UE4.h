@@ -240,14 +240,16 @@ public:
 		static bool ToObject(const FString& String, FJsonObject& Out) {
 			TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(String);
 			TSharedPtr<FJsonObject> JsonParsed;
+			UE_LOG(LogTemp, Warning, TEXT("ToObject Inner"));
 			if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
-				if (FJsonSerializer::Deserialize(JsonReader, JsonParsed)) {
-					if (JsonParsed.IsValid()) {
-						Out = *(JsonParsed.Get());
-						return true;
-					}
+				UE_LOG(LogTemp, Warning, TEXT("ToObject Deserialize Succeeded"));
+				if (JsonParsed.IsValid()) {
+					UE_LOG(LogTemp, Warning, TEXT("ToObject Json is Valid"));
+					Out = *(JsonParsed.Get());
+					return true;
 				}
 			}
+			UE_LOG(LogTemp, Warning, TEXT("ToObject Json is Invalid"));
 			return false;
 		}
 	};

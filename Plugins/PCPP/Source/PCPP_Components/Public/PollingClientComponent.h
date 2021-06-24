@@ -51,8 +51,8 @@ protected:
 
 
 public:	
-	
-	void TryPoll(const FString& Endpoint);
+	UFUNCTION(BlueprintCallable)
+	void TryPoll(const FString Endpoint);
 	
 	virtual void BeginDestroy() override;
 };

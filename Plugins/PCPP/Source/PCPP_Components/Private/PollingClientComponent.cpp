@@ -2,7 +2,7 @@
 
 
 #include "PollingClientComponent.h"
-#include "GameFramework/GameMode.h"
+#include "GameFramework/GameModeBase.h"
 #include "PCPP_UE4.h"
 
 TArray<UPollingClientComponent*> UPollingClientComponent::_Pollers = {};
@@ -26,9 +26,10 @@ UPollingClientComponent::UPollingClientComponent()
 void UPollingClientComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	auto GetPollingMode = [](AActor* Owner) {
-		if(Cast<AGameMode>(Owner)) {
+	UE_LOG(LogTemp, Warning, TEXT("Begin Play Called"));
+	auto GetPollingMode = [&](AActor* Owner) {
+		UE_LOG(LogTemp, Warning, TEXT("Get Polling Mode Entered with Owner as, %s"), *(Owner->GetName()));
+		if(Cast<AGameModeBase>(Owner)) {
 			return EPollingMode::IsServer;
 		}
 		if (Cast<APlayerController>(Owner)) {
@@ -69,10 +70,15 @@ void UPollingClientComponent::BeginPlay()
 }
 
 void UPollingClientComponent::ServerReceiveResponse_Implementation(const FString& Endpoint, const FString& Data, UPollingClientComponent* Caller) {
+	UE_LOG(LogTemp, Warning, TEXT("ServerReceiveResponse Inner"));
 	if (_Implementation) {
+		UE_LOG(LogTemp, Warning, TEXT("ServerReceiveResponse Implementation Found"));
 		FJsonObject ResponseObject;
+		/////////////////////////////////////////
+		UE_LOG(LogTemp, Warning, TEXT("To Object Outer, Input is: %s"), *Data);
 		bool ObjectMade = PCPP_UE4::JSON::ToObject(Data, ResponseObject);
 		if (ObjectMade) {
+			UE_LOG(LogTemp, Warning, TEXT("ServerGetResponse Outer"));
 			_Implementation->ServerGetResponse(Endpoint, ResponseObject, Caller);
 		}
 	}
@@ -80,52 +86,81 @@ void UPollingClientComponent::ServerReceiveResponse_Implementation(const FString
 
 
 void UPollingClientComponent::ClientReceiveResponse_Implementation(const FString& Endpoint, const FString& Data) {
+	UE_LOG(LogTemp, Warning, TEXT("ClientReceiveResponse Inner"));
 	if (_Implementation) {
+		UE_LOG(LogTemp, Warning, TEXT("ClientReceiveResponse Implementation Found"));
 		FJsonObject ResponseObject;
 		bool ObjectMade = PCPP_UE4::JSON::ToObject(Data, ResponseObject);
 		if (ObjectMade) {
+			UE_LOG(LogTemp, Warning, TEXT("ClientGetResponse Outer"));
 			_Implementation->ClientGetResponse(Endpoint, ResponseObject);
 		}
 	}
 }
 
 void UPollingClientComponent::ServerPolled_Implementation(const FString & Endpoint, UPollingClientComponent * Caller) {
+	UE_LOG(LogTemp, Warning, TEXT("ServerPolled Inner"));
 	if (_Implementation) {
+		UE_LOG(LogTemp, Warning, TEXT("ServerPolled Implementation Found"));
 		auto ResponseObject = _Implementation->MakeResponseObject(Endpoint);
 		auto ResponseString = PCPP_UE4::JSON::ToString(ResponseObject);
+		UE_LOG(LogTemp, Warning, TEXT("ClientReceiveResponse Outer"));
 		Caller->ClientReceiveResponse(Endpoint, ResponseString);
 	}
 }
 
 void UPollingClientComponent::ClientPolled_Implementation(const FString & Endpoint) {
+	UE_LOG(LogTemp, Warning, TEXT("ClientPolled Inner"));
 	if (_Implementation) {
+		UE_LOG(LogTemp, Warning, TEXT("ClientPolled Implementation Found"));
 		auto ResponseObject = _Implementation->MakeResponseObject(Endpoint);
 		auto ResponseString = PCPP_UE4::JSON::ToString(ResponseObject);
 		auto GameMode = GetWorld()->GetAuthGameMode();
 		if (GameMode) {
 			auto Comp = Cast<UPollingClientComponent>(GameMode->GetComponentByClass(UPollingClientComponent::StaticClass()));
 			if (Comp) {
+				UE_LOG(LogTemp, Warning, TEXT("ServerReceiveResponse Outer"));
 				Comp->ServerReceiveResponse(Endpoint, ResponseString, this);
 			}
 		}
 	}
 }
 
-void UPollingClientComponent::TryPoll(const FString & Endpoint) {
+void UPollingClientComponent::TryPoll(const FString Endpoint) {
+	UE_LOG(LogTemp, Warning, TEXT("TryPoll, Entered"));
+
 	// Confirm that code is being run on Client / Server
 	bool IsClient = GetWorld()->IsNetMode(NM_Client);
+	FString DebugPollMode;
+	if (_PollingMode == EPollingMode::NoPoll) {
+		DebugPollMode = "NoPoll";
+	}
+	if (_PollingMode == EPollingMode::IsClient) {
+		DebugPollMode = "IsClient";
+	}
+	if (_PollingMode == EPollingMode::IsServer) {
+		DebugPollMode = "IsServer";
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("TryPoll, Polling Mode is %s, IsClient is %d"), *DebugPollMode, IsClient);
 
 	// Sanity Check, don't attempt to poll if an implementation doesn't exist.
 	if (_Implementation) {
+		UE_LOG(LogTemp, Warning, TEXT("TryPoll, Implementation Found"));
 		if (_PollingMode == EPollingMode::IsClient && IsClient) {
+			UE_LOG(LogTemp, Warning, TEXT("TryPoll CLIENT MODE"));
 			// EXECUTING ON CLIENT, ATTEMPTING TO POLL SERVER
 			// POLL SERVER
+			UE_LOG(LogTemp, Warning, TEXT("ServerPolled Outer"));
 			ServerPolled(Endpoint, this);
 		}
 		else if (_PollingMode == EPollingMode::IsServer && !IsClient) {
+			UE_LOG(LogTemp, Warning, TEXT("TryPoll SERVER MODE"));
+
 			// EXECUTING ON SERVER, ATTEMPTING TO POLL CLIENTS
 			for (auto i = _Pollers.CreateIterator(); i; ++i) {
 				if ((*i)->_PollingMode == EPollingMode::IsClient) {
+					UE_LOG(LogTemp, Warning, TEXT("ClientPolled Outer"));
 					(*i)->ClientPolled(Endpoint);
 				}
 			}
