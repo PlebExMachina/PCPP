@@ -11,6 +11,8 @@ public class PCPP_Actors : ModuleRules {
             "Engine",
             "PCPP_Components",
             "PCPP_Interfaces",
+            "Json",
+            "JsonUtilities",
         });
 
         // Custom dependencies
