@@ -22,9 +22,8 @@ enum class EPollingMode : uint8 {
 * The parent or a sibling that implements IPollable will define how to respond to requests as well as how to handle data once
 * it is successfully polled.
 */
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class PCPP_COMPONENTS_API UPollingClientComponent : public UActorComponent
-{
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+class PCPP_COMPONENTS_API UPollingClientComponent : public UActorComponent {
 	GENERATED_BODY()
 
 public:	

@@ -13,7 +13,7 @@
  * 
  */
 UCLASS()
-class PCPP_GAME_API ANetworkPlayerController : public APlayerController, public IPollable
+class PCPP_ACTORS_API ANetworkPlayerController : public APlayerController, public IPollable
 {
 	GENERATED_BODY()
 public:

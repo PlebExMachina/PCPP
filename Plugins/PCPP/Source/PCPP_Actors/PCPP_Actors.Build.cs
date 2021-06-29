@@ -1,7 +1,7 @@
 using UnrealBuildTool;
 
-public class PCPP_Interfaces : ModuleRules {
-    public PCPP_Interfaces(ReadOnlyTargetRules Target) : base(Target) {
+public class PCPP_Actors : ModuleRules {
+    public PCPP_Actors(ReadOnlyTargetRules Target) : base(Target) {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         // Engine dependencies
@@ -9,14 +9,13 @@ public class PCPP_Interfaces : ModuleRules {
             "Core",
             "CoreUObject",
             "Engine",
-            "Json",
-            "JsonUtilities",
-            "Dev"
+            "PCPP_Components",
+            "PCPP_Interfaces",
         });
 
         // Custom dependencies
         PrivateDependencyModuleNames.AddRange(new string[] {
-
+            // TODO: Add custom (i.e. third party / not UE) dependencies here
         });
     }
 }

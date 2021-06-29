@@ -4,9 +4,10 @@
 #include "NetworkPlayerController.h"
 
 ANetworkPlayerController::ANetworkPlayerController() {
-	PollingComponent = CreateDefaultSubObject<UPollingClientComponent>(Name(TEXT("PollingComponent")));
+	auto PollingComponentName = FName(TEXT("PollingComponent"));
+	PollingComponent = CreateDefaultSubobject<UPollingClientComponent>(PollingComponentName);
 }
 
 INetworkPlayerControllerDataStore * ANetworkPlayerController::GetDataStore(){
-	return GetWorld()->GetGameInstance<INetworkPlayerDataStore>();
+	return GetWorld()->GetGameInstance<INetworkPlayerControllerDataStore>();
 }
