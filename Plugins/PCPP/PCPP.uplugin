@@ -54,6 +54,11 @@
 			"Name": "Dev",
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "PCPP_UI",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
